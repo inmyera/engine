@@ -75,88 +75,118 @@ class RpcHelper {
         });
     }
 }
-
-
 },
-
 });
-// The module cache
+
 var __webpack_module_cache__ = {};
 
-// The require function
 function __webpack_require__(moduleId) {
-
-// Check if module is in cache
-var cachedModule = __webpack_module_cache__[moduleId];
-if (cachedModule !== undefined) {
-return cachedModule.exports;
-}
-// Create a new module (and put it into the cache)
-var module = (__webpack_module_cache__[moduleId] = {
-exports: {}
-});
-// Execute the module function
-__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
-
-// Return the exports of the module
-return module.exports;
-
-}
-
-// webpack/runtime/define_property_getters
-(() => {
-__webpack_require__.d = (exports, definition) => {
-	for(var key in definition) {
-        if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
-            Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-        }
+    var cachedModule = __webpack_module_cache__[moduleId];
+    if (cachedModule !== undefined) {
+        return cachedModule.exports;
     }
-};
+
+    var module = (__webpack_module_cache__[moduleId] = {
+        exports: {}
+    });
+
+    __webpack_modules__[moduleId](
+        module,
+        module.exports,
+        __webpack_require__
+    );
+
+    return module.exports;
+}
+
+(() => {
+    __webpack_require__.d = (exports, definition) => {
+        for (var key in definition) {
+            if (
+                __webpack_require__.o(definition, key) &&
+                !__webpack_require__.o(exports, key)
+            ) {
+                Object.defineProperty(
+                    exports,
+                    key,
+                    {
+                        enumerable: true,
+                        get: definition[key]
+                    }
+                );
+            }
+        }
+    };
 })();
 
-// webpack/runtime/has_own_property
 (() => {
-__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+    __webpack_require__.o = (obj, prop) =>
+        Object.prototype.hasOwnProperty.call(obj, prop);
 })();
 
-// webpack/runtime/make_namespace_object
 (() => {
-__webpack_require__.r = (exports) => {
-	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-	}
-	Object.defineProperty(exports, '__esModule', { value: true });
-};
+    __webpack_require__.r = (exports) => {
+        if (
+            typeof Symbol !== "undefined" &&
+            Symbol.toStringTag
+        ) {
+            Object.defineProperty(
+                exports,
+                Symbol.toStringTag,
+                {
+                    value: "Module"
+                }
+            );
+        }
+
+        Object.defineProperty(
+            exports,
+            "__esModule",
+            {
+                value: true
+            }
+        );
+    };
 })();
 
 var __webpack_exports__ = {};
 
-// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
 (() => {
+
 __webpack_require__.r(__webpack_exports__);
+
 __webpack_require__.d(__webpack_exports__, {
-  route: () => (route),
-  shouldRoute: () => (shouldRoute)
+    route: () => (route),
+    shouldRoute: () => (shouldRoute)
 });
 
-/* import */ var _mercuryworkshop_rpc__rspack_import_0 = __webpack_require__("./packages/rpc/index.ts");
+var _mercuryworkshop_rpc__rspack_import_0 =
+    __webpack_require__("./packages/rpc/index.ts");
 
-/// <reference lib="WebWorker" />
-/// <reference types="@types/serviceworker" />
 
 function makeId() {
-    return Math.random().toString(36).substring(2, 10);
+    return Math.random()
+        .toString(36)
+        .substring(2, 10);
 }
 
+
 const cookieResolvers = {};
+
 
 addEventListener("message", (e)=>{
     if (!e.data) return;
     if (typeof e.data != "object") return;
 
-    if (e.data.$sw$setCookieDone && typeof e.data.$sw$setCookieDone == "object") {
-        const done = e.data.$sw$setCookieDone;
-        const resolver = cookieResolvers[done.id];
+    if (
+        e.data.$sw$setCookieDone &&
+        typeof e.data.$sw$setCookieDone == "object"
+    ) {
+        const done =
+            e.data.$sw$setCookieDone;
+
+        const resolver =
+            cookieResolvers[done.id];
 
         if (resolver) {
             resolver();
@@ -164,281 +194,938 @@ addEventListener("message", (e)=>{
         }
     }
 
-    if (e.data.$sw$initRemoteTransport && typeof e.data.$sw$initRemoteTransport == "object") {
-        const { port, prefix } = e.data.$sw$initRemoteTransport;
+    if (
+        e.data.$sw$initRemoteTransport &&
+        typeof e.data.$sw$initRemoteTransport == "object"
+    ) {
+        const {
+            port,
+            prefix
+        } =
+            e.data.$sw$initRemoteTransport;
 
-        const relevantcontroller = tabs.find((tab)=>
-            new URL(prefix).pathname.startsWith(tab.prefix)
-        );
+        const relevantcontroller =
+            tabs.find(
+                (tab)=>
+                    new URL(prefix)
+                        .pathname
+                        .startsWith(tab.prefix)
+            );
 
         if (!relevantcontroller) {
-            console.error("No relevant controller found for transport init");
+            console.error(
+                "No relevant controller found for transport init"
+            );
             return;
         }
 
-        relevantcontroller.rpc.call("initRemoteTransport", port, [
-            port
-        ]);
+        relevantcontroller.rpc.call(
+            "initRemoteTransport",
+            port,
+            [port]
+        );
     }
 });
 
+
 class ControllerReference {
+
     prefix;
     id;
     rpc;
 
     constructor(prefix, id, port){
+
         this.prefix = prefix;
         this.id = id;
 
-        this.rpc = new _mercuryworkshop_rpc__rspack_import_0.RpcHelper({
-            sendSetCookie: async ({ cookies, options })=>{
-                const clients1 = await self.clients.matchAll();
-
-                const ids = [];
-                const promises = [];
-
-                // Navigation fetches (document/iframe) deliver cookies via the inject
-                // script's embedded cookieJar dump — the destination page doesn't have
-                // inject.ts loaded yet to ack, so awaiting would deadlock. Broadcast
-                // so any already-loaded clients can update their jars, but don't wait.
-                const isNavigation =
-                    options?.destination === "document" ||
-                    options?.destination === "iframe";
-
-                for (const client of clients1){
-                    const id = makeId();
-
-                    ids.push(id);
-
-                    client.postMessage({
-                        $controller$setCookie: {
+        this.rpc =
+            new _mercuryworkshop_rpc__rspack_import_0.RpcHelper(
+                {
+                    sendSetCookie:
+                        async ({
                             cookies,
-                            options,
-                            id
-                        }
-                    });
+                            options
+                        }) => {
 
-                    if (!isNavigation) {
-                        promises.push(new Promise((resolve)=>{
-                            // Resolve with the id so we know which client replied.
-                            cookieResolvers[id] = ()=>resolve(id);
-                        }));
-                    }
-                }
+                            const clients1 =
+                                await self.clients.matchAll();
 
-                // Wait for the first client to acknowledge the cookie sync.
-                // Using Promise.any (not Promise.all) so that extra SW clients created by
-                // window.open (e.g. test popup windows) don't cause timeouts — only the
-                // main controller client needs to respond.
-                if (promises.length > 0) {
-                    let timeoutId;
-                    let responded = false;
+                            const ids = [];
+                            const promises = [];
 
-                    const timeoutPromise = new Promise((resolve)=>{
-                        timeoutId = setTimeout(()=>{
-                            if (!responded) {
-                                const pending = ids.filter(
-                                    (id)=>cookieResolvers[id] !== undefined
-                                );
+                            const isNavigation =
+                                options?.destination === "document" ||
+                                options?.destination === "iframe";
 
-                                console.error(
-                                    "timed out waiting for set cookie response (deadlock?): " +
-                                    `cookies=${cookies.length} clients=${clients1.length} ` +
-                                    `pending=${pending.length}/${ids.length} ` +
-                                    `clientUrls=${clients1.map((c)=>c.url).join(",")}`
-                                );
+                            for (const client of clients1) {
+
+                                const id =
+                                    makeId();
+
+                                ids.push(id);
+
+                                client.postMessage({
+                                    $controller$setCookie: {
+                                        cookies,
+                                        options,
+                                        id
+                                    }
+                                });
+
+                                if (!isNavigation) {
+
+                                    promises.push(
+                                        new Promise(
+                                            (resolve)=>{
+                                                cookieResolvers[id] =
+                                                    ()=>resolve(id);
+                                            }
+                                        )
+                                    );
+
+                                }
                             }
 
-                            resolve();
-                        }, 1000);
-                    });
+                            if (promises.length > 0) {
 
-                    try {
-                        await Promise.race([
-                            timeoutPromise,
+                                let timeoutId;
+                                let responded = false;
 
-                            Promise.any(promises).then(()=>{
-                                responded = true;
-                            }).catch(()=>{})
-                        ]);
-                    } finally{
-                        // Clear the timeout so it doesn't fire spuriously after the
-                        // race has already been won by Promise.any.
-                        if (timeoutId !== undefined) {
-                            clearTimeout(timeoutId);
+                                const timeoutPromise =
+                                    new Promise(
+                                        (resolve)=>{
+
+                                            timeoutId =
+                                                setTimeout(
+                                                    ()=>{
+
+                                                        if (!responded) {
+
+                                                            const pending =
+                                                                ids.filter(
+                                                                    (id)=>
+                                                                        cookieResolvers[id] !==
+                                                                        undefined
+                                                                );
+
+                                                            console.error(
+                                                                "timed out waiting for set cookie response (deadlock?): " +
+                                                                `cookies=${cookies.length} clients=${clients1.length} ` +
+                                                                `pending=${pending.length}/${ids.length} ` +
+                                                                `clientUrls=${clients1.map((c)=>c.url).join(",")}`
+                                                            );
+                                                        }
+
+                                                        resolve();
+
+                                                    },
+                                                    1000
+                                                );
+
+                                        }
+                                    );
+
+                                try {
+
+                                    await Promise.race([
+                                        timeoutPromise,
+
+                                        Promise.any(
+                                            promises
+                                        )
+                                            .then(()=>{
+                                                responded = true;
+                                            })
+                                            .catch(()=>{})
+                                    ]);
+
+                                } finally {
+
+                                    if (
+                                        timeoutId !==
+                                        undefined
+                                    ) {
+                                        clearTimeout(
+                                            timeoutId
+                                        );
+                                    }
+
+                                    for (
+                                        const id
+                                        of ids
+                                    ) {
+                                        delete cookieResolvers[id];
+                                    }
+                                }
+                            }
                         }
+                },
 
-                        // Clean up any pending resolvers so clients that never
-                        // responded don't leak entries in cookieResolvers.
-                        for (const id of ids){
-                            delete cookieResolvers[id];
-                        }
-                    }
+                "tabchannel-" + id,
+
+                (data, transfer)=>{
+                    port.postMessage(
+                        data,
+                        transfer
+                    );
                 }
-            }
-        }, "tabchannel-" + id, (data, transfer)=>{
-            port.postMessage(data, transfer);
-        });
+            );
 
-        port.onmessage = (e)=>{
-            this.rpc.recieve(e.data);
-        };
+        port.onmessage =
+            (e)=>{
+                this.rpc.recieve(
+                    e.data
+                );
+            };
 
-        port.onmessageerror = console.error;
+        port.onmessageerror =
+            console.error;
 
-        this.rpc.call("ready", undefined);
+        this.rpc.call(
+            "ready",
+            undefined
+        );
     }
 }
+
 
 const tabs = [];
 
-// --- self-heal: tolerate SW restarts mid-session ---------------------------------
-// The SW can be killed while idle (browser reclamation, SW update) and woken by a
-// proxied fetch. tabs[] is rebuilt only when clients re-send $controller$init, so
-// a fetch racing (or losing) that wake-up would 404 against the static server.
-// When a /~/sj/ request matches no tab, we ping every client to re-register.
+
+/* =========================================================
+   ENTRY SERVICE WORKER SELF-HEAL
+
+   Browsers may terminate a service worker while it is idle.
+
+   When it starts again, tabs[] is initially empty.
+
+   If a proxied /~/sj/ request arrives during that window,
+   Entry asks its browser clients to re-register their
+   Corridor controller.
+   ========================================================= */
+
 
 function tabForPathname(pathname) {
-    return tabs.find((tab)=>pathname.startsWith(tab.prefix));
+
+    return tabs.find(
+        (tab)=>
+            pathname.startsWith(
+                tab.prefix
+            )
+    );
+
 }
+
 
 let lastRevivePing = 0;
 
+
 function requestRevive() {
-    const now = Date.now();
 
-    if (now - lastRevivePing < 500) return;
+    const now =
+        Date.now();
 
-    // debounce: all subresources of one page
-    lastRevivePing = now;
-
-    console.warn(
-        "[corridor] proxied fetch with no registered tab — requesting re-init"
-    );
-
-    clients.matchAll().then((all)=>{
-        for (const client of all) {
-            client.postMessage({
-                $controller$swrevive: {}
-            });
-        }
-    });
-}
-
-// ---------------------------------------------------------------------------------
-
-addEventListener("message", (e)=>{
-    if (!e.data) return;
-    if (typeof e.data != "object") return;
-    if (!e.data.$controller$init) return;
-    if (typeof e.data.$controller$init != "object") return;
-
-    const init = e.data.$controller$init;
-
-    const existing = tabs.findIndex(
-        (t)=>t.id === init.id
-    );
-
-    if (existing !== -1) {
-        tabs.splice(existing, 1);
+    if (
+        now - lastRevivePing <
+        500
+    ) {
+        return;
     }
 
-    tabs.push(
-        new ControllerReference(
-            init.prefix,
-            init.id,
-            e.ports[0]
-        )
+    lastRevivePing =
+        now;
+
+    console.warn(
+        "[Entry] proxied request has no registered tab — requesting controller re-init"
     );
-});
+
+    clients
+        .matchAll()
+        .then((all)=>{
+
+            for (
+                const client
+                of all
+            ) {
+
+                client.postMessage({
+                    $controller$swrevive: {}
+                });
+
+            }
+
+        });
+
+}
+
+
+/* =========================================================
+   CONTROLLER REGISTRATION
+   ========================================================= */
+
+
+addEventListener(
+    "message",
+    (e)=>{
+
+        if (!e.data) {
+            return;
+        }
+
+        if (
+            typeof e.data !=
+            "object"
+        ) {
+            return;
+        }
+
+        if (
+            !e.data.$controller$init
+        ) {
+            return;
+        }
+
+        if (
+            typeof e.data.$controller$init !=
+            "object"
+        ) {
+            return;
+        }
+
+        const init =
+            e.data.$controller$init;
+
+        const existing =
+            tabs.findIndex(
+                (t)=>
+                    t.id ===
+                    init.id
+            );
+
+        if (
+            existing !==
+            -1
+        ) {
+
+            tabs.splice(
+                existing,
+                1
+            );
+
+        }
+
+        tabs.push(
+            new ControllerReference(
+                init.prefix,
+                init.id,
+                e.ports[0]
+            )
+        );
+
+    }
+);
+
+
+/* =========================================================
+   ROUTE DETECTION
+   ========================================================= */
+
 
 function shouldRoute(event) {
-    const url = new URL(event.request.url);
+
+    const url =
+        new URL(
+            event.request.url
+        );
 
     const tab =
         tabForPathname(
             url.pathname
         );
 
-    // Under the SW's own scope, so builds served from a subfolder heal too.
+    const proxyBase =
+        new URL(
+            self.registration.scope
+        ).pathname +
+        "~/sj/";
+
     if (
         !tab &&
         url.pathname.startsWith(
-            new URL(self.registration.scope).pathname +
-            "~/sj/"
+            proxyBase
         )
     ) {
-        // Tab registry is empty/stale (SW restart race): wake the client so it
-        // re-sends $controller$init. This fetch itself may still 404 — the next
-        // attempt succeeds, and self-repairing loads recover automatically.
+
         requestRevive();
+
     }
 
-    return tab !== undefined;
+    return (
+        tab !== undefined
+    );
+
 }
 
 
-// Error page shown in place of a page that failed to load through the
-// proxy — connection/SSL/DNS failures (which throw) and failed top-level
-// navigations (404 / 5xx responses). Subresource failures never see this:
-// a missing image or script must not replace the whole page.
+/* =========================================================
+   TOP LEVEL NAVIGATION DETECTION
+   ========================================================= */
+
 
 function isTopNavigation(event) {
-    // "iframe" is the important one here: proxied pages live in iframes, so
-    // their navigations arrive with destination "iframe", not "document".
+
     return (
-        event.request.mode === "navigate" ||
-        event.request.destination === "document" ||
-        event.request.destination === "iframe"
+        event.request.mode ===
+            "navigate" ||
+
+        event.request.destination ===
+            "document" ||
+
+        event.request.destination ===
+            "iframe"
     );
+
 }
+
+
+/* =========================================================
+   ENTRY ERROR PAGE
+   ========================================================= */
+
 
 function errorPage(detail) {
-    const safe = String(
-        detail ?? "unknown error"
-    ).replace(/[<>&"]/g, (c) => ({
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        '"': "&quot;"
-    }[c]));
+
+    const safe =
+        String(
+            detail ??
+            "Unknown browser error"
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
 
     const html =
-        `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Failed to load — achroma</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet"><style>html,body{margin:0;height:100%;background:transparent;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{display:flex;align-items:center;justify-content:center}.wrap{text-align:center;padding:24px;max-width:560px}h1{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff;font-size:28px;font-weight:700;margin:0 0 10px}p{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:rgba(255,255,255,.55);font-size:14px;line-height:1.6;margin:0 0 18px}code{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;color:rgba(255,255,255,.75);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;max-width:100%;word-break:break-all;text-align:left}</style></head><body><div class="wrap"><h1>Uh oh!</h1><p>Something failed, and achroma failed to load the page. Try refreshing.</p><code>${safe}</code></div></body></html>`;
+`<!doctype html>
+<html lang="en">
 
-    return new Response(html, {
-        status: 200,
+<head>
 
-        headers: {
-            "content-type":
-                "text/html; charset=utf-8",
+<meta charset="utf-8">
 
-            "cache-control":
-                "no-store"
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+>
+
+<title>Entry — Failed to load</title>
+
+<link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+>
+
+<link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mrs+Saint+Delafield&display=swap"
+    rel="stylesheet"
+>
+
+<style>
+
+:root {
+    --a: #2ff5c8;
+    --a2: #17c9ff;
+    --ar: 47,245,200;
+    --a2r: 23,201,255;
+    --tx: #e6fbf7;
+    --mut: #7fa39d;
+    --line: rgba(255,255,255,.08);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 28px;
+
+    overflow: hidden;
+
+    background: #000;
+
+    color: var(--tx);
+
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+.bg {
+    position: fixed;
+    inset: 0;
+
+    overflow: hidden;
+
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle at 18% 100%,
+            rgba(var(--ar),.19),
+            transparent 42%
+        ),
+        radial-gradient(
+            circle at 82% 100%,
+            rgba(var(--a2r),.17),
+            transparent 43%
+        ),
+        #000;
+}
+
+.bg::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    background-image:
+        radial-gradient(
+            rgba(255,255,255,.13) 1px,
+            transparent 1.2px
+        );
+
+    background-size:
+        20px 20px;
+
+    -webkit-mask-image:
+        linear-gradient(
+            #000 0%,
+            transparent 78%
+        );
+
+    mask-image:
+        linear-gradient(
+            #000 0%,
+            transparent 78%
+        );
+}
+
+.glow {
+    position: absolute;
+
+    left: 50%;
+    bottom: -370px;
+
+    width: 900px;
+    height: 600px;
+
+    transform:
+        translateX(-50%);
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at 35% 40%,
+            rgba(var(--ar),.5),
+            transparent 55%
+        ),
+        radial-gradient(
+            circle at 65% 35%,
+            rgba(var(--a2r),.4),
+            transparent 55%
+        );
+
+    filter:
+        blur(65px);
+}
+
+.card {
+    position: relative;
+
+    z-index: 2;
+
+    width:
+        min(620px,100%);
+
+    padding:
+        34px;
+
+    border:
+        1px solid var(--line);
+
+    border-radius:
+        18px;
+
+    background:
+        rgba(0,0,0,.72);
+
+    -webkit-backdrop-filter:
+        blur(16px);
+
+    backdrop-filter:
+        blur(16px);
+
+    box-shadow:
+        0 30px 90px
+        rgba(0,0,0,.75);
+
+    text-align:
+        center;
+}
+
+.logo {
+    margin:
+        -4px 0 6px;
+
+    font:
+        400 82px/1
+        "Mrs Saint Delafield",
+        cursive;
+
+    color:
+        #fff;
+
+    text-shadow:
+        0 0 22px
+        rgba(var(--ar),.75),
+        0 0 50px
+        rgba(var(--a2r),.4);
+}
+
+.badge {
+    display:
+        inline-block;
+
+    margin-bottom:
+        19px;
+
+    padding:
+        5px 10px;
+
+    border:
+        1px solid
+        rgba(var(--ar),.25);
+
+    border-radius:
+        999px;
+
+    background:
+        rgba(var(--ar),.06);
+
+    color:
+        var(--a);
+
+    font-size:
+        10px;
+
+    font-weight:
+        700;
+
+    letter-spacing:
+        .13em;
+
+    text-transform:
+        uppercase;
+}
+
+h1 {
+    margin:
+        0 0 9px;
+
+    font-size:
+        23px;
+
+    font-weight:
+        600;
+}
+
+.sub {
+    margin:
+        0 auto;
+
+    max-width:
+        450px;
+
+    color:
+        var(--mut);
+
+    font-size:
+        12px;
+
+    line-height:
+        1.65;
+}
+
+.error {
+    margin-top:
+        21px;
+
+    padding:
+        13px 14px;
+
+    border:
+        1px solid
+        rgba(255,255,255,.07);
+
+    border-radius:
+        10px;
+
+    background:
+        rgba(255,255,255,.035);
+
+    color:
+        #b9d8d2;
+
+    font:
+        11px/1.55
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+
+    text-align:
+        left;
+
+    overflow-wrap:
+        anywhere;
+
+    max-height:
+        190px;
+
+    overflow:
+        auto;
+}
+
+.actions {
+    display:
+        flex;
+
+    justify-content:
+        center;
+
+    gap:
+        8px;
+
+    margin-top:
+        19px;
+}
+
+button {
+    min-width:
+        110px;
+
+    height:
+        38px;
+
+    padding:
+        0 16px;
+
+    border:
+        1px solid
+        var(--line);
+
+    border-radius:
+        9px;
+
+    background:
+        rgba(255,255,255,.05);
+
+    color:
+        var(--tx);
+
+    font:
+        600 12px
+        Inter,
+        system-ui,
+        sans-serif;
+
+    cursor:
+        pointer;
+}
+
+button:hover {
+    border-color:
+        rgba(var(--ar),.45);
+
+    background:
+        rgba(var(--ar),.07);
+}
+
+button.primary {
+    border:
+        0;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--a),
+            var(--a2)
+        );
+
+    color:
+        #00231d;
+}
+
+.foot {
+    margin-top:
+        19px;
+
+    color:
+        rgba(127,163,157,.65);
+
+    font-size:
+        10px;
+
+    letter-spacing:
+        .05em;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="bg">
+    <div class="glow"></div>
+</div>
+
+
+<main class="card">
+
+    <div class="logo">
+        entry
+    </div>
+
+    <div class="badge">
+        Browser Error
+    </div>
+
+    <h1>
+        Uh oh!
+    </h1>
+
+    <p class="sub">
+        Something failed, and Entry couldn't load
+        this page. You can try refreshing or go back
+        to the previous page.
+    </p>
+
+    <div class="error">
+        ${safe}
+    </div>
+
+    <div class="actions">
+
+        <button
+            type="button"
+            onclick="history.back()"
+        >
+            Go back
+        </button>
+
+        <button
+            type="button"
+            class="primary"
+            onclick="location.reload()"
+        >
+            Try again
+        </button>
+
+    </div>
+
+    <div class="foot">
+        entry · private browser
+    </div>
+
+</main>
+
+</body>
+
+</html>`;
+
+
+    return new Response(
+        html,
+        {
+            status: 200,
+
+            headers: {
+
+                "content-type":
+                    "text/html; charset=utf-8",
+
+                "cache-control":
+                    "no-store"
+
+            }
         }
-    });
+    );
+
 }
 
 
-// Wait briefly for a tab to (re)register after a revive ping — this covers the
-// SW-restart race where the waking fetch arrives before the client's
-// $controller$init handshake lands. Returns the tab or null.
+/* =========================================================
+   WAIT FOR CONTROLLER RE-REGISTRATION
+   ========================================================= */
+
 
 const sleep =
     (ms) =>
         new Promise(
-            (r) =>
+            (resolve)=>
                 setTimeout(
-                    r,
+                    resolve,
                     ms
                 )
         );
+
 
 async function tabAwaiting(
     pathname,
     timeoutMs = 2500
 ) {
+
     let tab =
         tabForPathname(
             pathname
@@ -458,6 +1145,7 @@ async function tabAwaiting(
         Date.now() <
         deadline
     ) {
+
         await sleep(
             100
         );
@@ -470,14 +1158,23 @@ async function tabAwaiting(
         if (tab) {
             return tab;
         }
+
     }
 
     return null;
+
 }
 
 
+/* =========================================================
+   REQUEST ROUTING
+   ========================================================= */
+
+
 async function route(event) {
+
     try {
+
         const url =
             new URL(
                 event.request.url
@@ -489,33 +1186,40 @@ async function route(event) {
             );
 
         if (!tab) {
-            // No registered tab for this prefix — likely a freshly restarted SW.
-            // Give the client a moment to re-handshake before giving up.
+
             tab =
                 await tabAwaiting(
                     url.pathname
                 );
 
             if (!tab) {
+
                 throw new Error(
-                    "no proxy session for this tab (stale or restarted service worker)"
+                    "No Entry browser session exists for this tab. The service worker may have restarted."
                 );
+
             }
+
         }
+
 
         const client =
             await clients.get(
                 event.clientId
             );
 
+
         const rawheaders = [
             ...event.request.headers
         ];
 
+
         const response =
             await tab.rpc.call(
                 "request",
+
                 {
+
                     rawUrl:
                         event.request.url,
 
@@ -554,18 +1258,20 @@ async function route(event) {
                     clientId:
                         event.clientId ||
                         event.resultingClientId
+
                 },
 
                 event.request.body instanceof ReadableStream ||
                 event.request.body instanceof ArrayBuffer
+
                     ? [
                         event.request.body
                     ]
+
                     : undefined
             );
 
-        // Failed page loads (404 / 5xx / transport-reported status 0) swap in
-        // the error page; the real response is untouched otherwise.
+
         if (
             isTopNavigation(event) &&
             (
@@ -574,8 +1280,9 @@ async function route(event) {
                 response.status >= 500
             )
         ) {
+
             console.warn(
-                "Page failed to load:",
+                "[Entry] Page failed to load:",
                 response.status,
                 response.statusText
             );
@@ -588,10 +1295,13 @@ async function route(event) {
                         : ""
                 }`
             );
+
         }
+
 
         return new Response(
             response.body,
+
             {
                 status:
                     response.status,
@@ -603,63 +1313,102 @@ async function route(event) {
                     response.headers
             }
         );
+
+
     } catch (e) {
+
         console.error(
-            "Service Worker error:",
+            "[Entry] Service Worker error:",
             e
         );
 
-        // Connection/SSL/DNS failures land here — render the error page for
-        // top-level navigations, keep the bare error for subresources.
+
         if (
             isTopNavigation(
                 event
             )
         ) {
+
             return errorPage(
                 e.message ||
                 String(e)
             );
+
         }
 
+
         return new Response(
-            "Internal Service Worker Error: " +
-            e.message,
+            "Internal Entry Service Worker Error: " +
+            (
+                e?.message ||
+                String(e)
+            ),
+
             {
-                status: 500
+                status: 500,
+
+                headers: {
+                    "content-type":
+                        "text/plain; charset=utf-8",
+
+                    "cache-control":
+                        "no-store"
+                }
             }
         );
+
     }
+
 }
 
 
 /* =========================================================
    FETCH ROUTER
 
-   THIS WAS MISSING FROM THE ORIGINAL FILE.
+   IMPORTANT:
+   Entry's proxied pages use /~/sj/.
 
-   Without this listener the browser sends /~/sj/... directly
-   to Express, causing:
+   We route an already-registered tab normally.
 
-   {"error":"Not found","path":"/~/sj/..."}
+   We ALSO intercept /~/sj/ when tabs[] is temporarily empty
+   after a browser/service-worker restart. route() then waits
+   briefly for the Entry client to re-register.
 
-   Corridor must intercept those requests here.
+   This prevents the request from falling through to Express.
    ========================================================= */
+
 
 addEventListener(
     "fetch",
     (event)=>{
+
+        const url =
+            new URL(
+                event.request.url
+            );
+
+        const proxyBase =
+            new URL(
+                self.registration.scope
+            ).pathname +
+            "~/sj/";
+
+
         if (
-            shouldRoute(
-                event
+            shouldRoute(event) ||
+            url.pathname.startsWith(
+                proxyBase
             )
         ) {
+
             event.respondWith(
                 route(
                     event
                 )
             );
+
         }
+
     }
 );
 
@@ -668,6 +1417,7 @@ addEventListener(
    SERVICE WORKER LIFECYCLE
    ========================================================= */
 
+
 addEventListener(
     "install",
     ()=>{
@@ -675,23 +1425,29 @@ addEventListener(
     }
 );
 
+
 addEventListener(
     "activate",
     (event)=>{
+
         event.waitUntil(
             clients.claim()
         );
+
     }
 );
 
 
-// the only way to know if a service worker has suddenly died is if this code runs again
-// notify all clients to send over their messageports again
+/* =========================================================
+   REVIVE CONTROLLERS AFTER SERVICE WORKER START
+   ========================================================= */
+
 
 setTimeout(
     async ()=>{
+
         console.log(
-            "service worker activated, notifying clients to revive"
+            "[Entry] service worker activated, notifying clients to revive"
         );
 
         for (
@@ -701,22 +1457,25 @@ setTimeout(
                 await clients.matchAll()
             )
         ) {
+
             client.postMessage({
                 $controller$swrevive: {}
             });
+
         }
 
-        // short delay is apparently needed
     },
     100
 );
 
+
 })();
+
 
 $corridorController =
     __webpack_exports__;
 
-})()
-;
+
+})();
 
 //# sourceMappingURL=controller.sw.js.map
