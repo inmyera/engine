@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Entry Browser</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    body {
+      font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    #browser {
+      position: fixed;
+      inset: 0;
+
+      width: 100%;
+      height: 100%;
+
+      border: 0;
+
+      display: block;
+
+      background: #000;
+    }
+
+    #status {
+      position: fixed;
+      inset: 0;
+
+      z-index: 999999;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+      padding: 30px;
+
+      background: #000;
+
+      color: #fff;
+
+      text-align: center;
+    }
+
+    #status.hidden {
+      display: none;
+    }
+
+    #status-title {
+      margin-bottom: 10px;
+
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    #status-message {
+      max-width: 600px;
+
+      font-size: 14px;
+
+      line-height: 1.5;
+
+      opacity: 0.7;
+
+      word-break: break-word;
+    }
+
+    #spinner {
+      width: 34px;
+      height: 34px;
+
+      margin-bottom: 20px;
+
+      border: 3px solid rgba(255,255,255,0.15);
+
+      border-top-color: #fff;
+
+      border-radius: 50%;
+
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+
+<body>
+
+  <iframe
+    id="browser"
+    allow="autoplay; fullscreen; clipboard-write; encrypted-media; geolocation"
+    referrerpolicy="no-referrer"
+  ></iframe>
+
+
+  <div id="status">
+
+    <div id="spinner"></div>
+
+    <div id="status-title">
+      Starting Entry
+    </div>
+
+    <div id="status-message">
+      Initializing browser engine…
+    </div>
+
+  </div>
+
+
+  <!-- Corridor controller API -->
+  <script src="/controller/controller.api.js"></script>
+
+
+  <script type="module">
+
+    /*
+     * =====================================================
+     * ENTRY BROWSER
+     * =====================================================
+     *
+     * URL format:
+     *
+     * /browse?url=https%3A%2F%2Fexample.com
+     *
+     * =====================================================
+     */
+
+
+    import EpoxyTransport from "/transport/index.js";
+
+
+    /*
+     * -----------------------------------------------------
+     * CONFIGURATION
+     * -----------------------------------------------------
+     */
+
+    const CONFIG = {
+
+      WISP:
+        "wss://baylib.top/wisp/",
+
+      SERVICE_WORKER:
+        "/controller/controller.sw.js"
+
+    };
+
+
+    /*
+     * -----------------------------------------------------
+     * ELEMENTS
+     * -----------------------------------------------------
+     */
+
+    const iframe =
+      document.getElementById(
+        "browser"
+      );
+
+
+    const status =
+      document.getElementById(
+        "status"
+      );
+
+
+    const statusTitle =
+      document.getElementById(
+        "status-title"
+      );
+
+
+    const statusMessage =
+      document.getElementById(
+        "status-message"
+      );
+
+
+    const spinner =
+      document.getElementById(
+        "spinner"
+      );
+
+
+    /*
+     * -----------------------------------------------------
+     * STATUS HELPERS
+     * -----------------------------------------------------
+     */
+
+    function setStatus(
+      title,
+      message
+    ) {
+
+      statusTitle.textContent =
+        title;
+
+
+      statusMessage.textContent =
+        message || "";
+
+    }
+
+
+    function hideStatus() {
+
+      status.classList.add(
+        "hidden"
+      );
+
+    }
+
+
+    function showError(error) {
+
+      console.error(
+        "[Entry]",
+        error
+      );
+
+
+      spinner.style.display =
+        "none";
+
+
+      setStatus(
+        "Browser failed to start",
+        error?.message ||
+        String(error)
+      );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * GET TARGET URL
+     * -----------------------------------------------------
+     */
+
+    function getTargetURL() {
+
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
+
+
+      let target =
+        params.get(
+          "url"
+        );
+
+
+      if (!target) {
+
+        throw new Error(
+          "No destination URL was supplied."
+        );
+
+      }
+
+
+      target =
+        target.trim();
+
+
+      /*
+       * Add HTTPS when the frontend sends:
+       *
+       * example.com
+       */
+
+      if (
+        !/^https?:\/\//i.test(
+          target
+        )
+      ) {
+
+        target =
+          "https://" +
+          target;
+
+      }
+
+
+      /*
+       * Validate URL
+       */
+
+      let parsed;
+
+
+      try {
+
+        parsed =
+          new URL(
+            target
+          );
+
+      }
+
+      catch {
+
+        throw new Error(
+          "Invalid destination URL."
+        );
+
+      }
+
+
+      if (
+        parsed.protocol !==
+          "http:" &&
+
+        parsed.protocol !==
+          "https:"
+      ) {
+
+        throw new Error(
+          "Only HTTP and HTTPS destinations are supported."
+        );
+
+      }
+
+
+      return parsed.href;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * REGISTER SERVICE WORKER
+     * -----------------------------------------------------
+     */
+
+    async function registerWorker() {
+
+      if (
+        !(
+          "serviceWorker"
+          in navigator
+        )
+      ) {
+
+        throw new Error(
+          "Service workers are not supported by this browser."
+        );
+
+      }
+
+
+      setStatus(
+        "Starting Entry",
+        "Loading browser controller…"
+      );
+
+
+      const registration =
+        await navigator
+          .serviceWorker
+          .register(
+            CONFIG.SERVICE_WORKER,
+            {
+              scope: "/"
+            }
+          );
+
+
+      await navigator
+        .serviceWorker
+        .ready;
+
+
+      /*
+       * Get whichever worker currently exists.
+       */
+
+      let worker =
+        registration.active ||
+        registration.waiting ||
+        registration.installing;
+
+
+      if (!worker) {
+
+        throw new Error(
+          "The browser controller did not start."
+        );
+
+      }
+
+
+      /*
+       * Wait for an installing worker.
+       */
+
+      if (
+        worker.state ===
+        "installing"
+      ) {
+
+        await new Promise(
+          (resolve, reject) => {
+
+            const timeout =
+              setTimeout(
+                () => {
+
+                  reject(
+                    new Error(
+                      "Timed out waiting for the browser controller."
+                    )
+                  );
+
+                },
+                15000
+              );
+
+
+            worker.addEventListener(
+              "statechange",
+              () => {
+
+                if (
+                  worker.state ===
+                  "activated"
+                ) {
+
+                  clearTimeout(
+                    timeout
+                  );
+
+                  resolve();
+
+                }
+
+              }
+            );
+
+          }
+        );
+
+      }
+
+
+      /*
+       * Refresh worker reference after activation.
+       */
+
+      worker =
+        registration.active ||
+        worker;
+
+
+      return {
+        registration,
+        worker
+      };
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * WAIT FOR CONTROLLER API
+     * -----------------------------------------------------
+     */
+
+    async function waitForControllerAPI() {
+
+      const started =
+        Date.now();
+
+
+      while (
+        Date.now() -
+          started <
+        15000
+      ) {
+
+        if (
+          window
+            .$corridorController
+            ?.Controller
+        ) {
+
+          return window
+            .$corridorController;
+
+        }
+
+
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              50
+            )
+        );
+
+      }
+
+
+      throw new Error(
+        "Corridor Controller API did not load."
+      );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * START TRANSPORT
+     * -----------------------------------------------------
+     */
+
+    async function createTransport() {
+
+      setStatus(
+        "Connecting",
+        "Connecting browser transport…"
+      );
+
+
+      const transport =
+        new EpoxyTransport({
+          wisp:
+            CONFIG.WISP
+        });
+
+
+      /*
+       * Some Epoxy builds expose init(),
+       * while others are initialized by
+       * the controller.
+       */
+
+      if (
+        typeof transport.init ===
+        "function"
+      ) {
+
+        try {
+
+          await transport.init();
+
+        }
+
+        catch (error) {
+
+          console.warn(
+            "[Entry] Transport init:",
+            error
+          );
+
+        }
+
+      }
+
+
+      return transport;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * CREATE CORRIDOR CONTROLLER
+     * -----------------------------------------------------
+     */
+
+    async function createController(
+      worker,
+      transport
+    ) {
+
+      setStatus(
+        "Starting browser",
+        "Initializing Corridor…"
+      );
+
+
+      const api =
+        await waitForControllerAPI();
+
+
+      const controller =
+        new api.Controller({
+          serviceworker:
+            worker,
+
+          transport:
+            transport
+        });
+
+
+      if (
+        typeof controller.wait ===
+        "function"
+      ) {
+
+        await controller.wait();
+
+      }
+
+
+      return controller;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * OPEN DESTINATION
+     * -----------------------------------------------------
+     */
+
+    async function openDestination(
+      controller,
+      target
+    ) {
+
+      setStatus(
+        "Opening website",
+        target
+      );
+
+
+      if (
+        typeof controller.createFrame !==
+        "function"
+      ) {
+
+        throw new Error(
+          "Corridor createFrame() is unavailable."
+        );
+
+      }
+
+
+      const frame =
+        controller.createFrame(
+          iframe
+        );
+
+
+      if (
+        !frame ||
+        typeof frame.go !==
+          "function"
+      ) {
+
+        throw new Error(
+          "Corridor frame.go() is unavailable."
+        );
+
+      }
+
+
+      await frame.go(
+        target
+      );
+
+
+      hideStatus();
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * MAIN
+     * -----------------------------------------------------
+     */
+
+    async function start() {
+
+      try {
+
+        const target =
+          getTargetURL();
+
+
+        /*
+         * Register Corridor worker.
+         */
+
+        const {
+          worker
+        } =
+          await registerWorker();
+
+
+        /*
+         * Start Epoxy.
+         */
+
+        const transport =
+          await createTransport();
+
+
+        /*
+         * Create Corridor controller.
+         */
+
+        const controller =
+          await createController(
+            worker,
+            transport
+          );
+
+
+        /*
+         * Launch destination.
+         */
+
+        await openDestination(
+          controller,
+          target
+        );
+
+      }
+
+      catch (error) {
+
+        showError(
+          error
+        );
+
+      }
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * START ENTRY
+     * -----------------------------------------------------
+     */
+
+    start();
+
+  </script>
+
+</body>
+
+</html>
