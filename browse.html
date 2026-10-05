@@ -37,11 +37,14 @@
     #browser {
       position: fixed;
       inset: 0;
+
       width: 100%;
       height: 100%;
+
       border: 0;
       display: block;
-      background: #fff;
+
+      background: #000;
     }
 
     /* =====================================================
@@ -51,6 +54,7 @@
     #status {
       position: fixed;
       inset: 0;
+
       z-index: 999999;
 
       display: flex;
@@ -117,7 +121,6 @@
       border-radius: 12px;
 
       background: #111;
-
       color: #fff;
 
       font-family:
@@ -314,9 +317,7 @@
     .nsfw-buttons {
       display: grid;
 
-      grid-template-columns:
-        1fr
-        1fr;
+      grid-template-columns: 1fr 1fr;
 
       gap: 10px;
 
@@ -505,12 +506,14 @@
 
       /* =====================================================
          CONFIG
+
+         WISP CHANGED TO MERCURY WORKSHOP
          ===================================================== */
 
       const CONFIG = {
 
         WISP:
-          "wss://baylib.top/wisp/",
+          "wss://wisp.mercurywork.shop/",
 
         SERVICE_WORKER:
           "/controller/controller.sw.js",
@@ -632,7 +635,7 @@
 
 
       /* =====================================================
-         STATUS
+         STATUS HELPERS
          ===================================================== */
 
       function setStatus(
@@ -744,7 +747,7 @@
 
 
       /* =====================================================
-         TARGET
+         TARGET URL
          ===================================================== */
 
       function getTarget() {
@@ -1086,13 +1089,9 @@
       /* =====================================================
          ENGINE CHECK
 
-         IMPORTANT:
-         Your actual /transport/index.js reported:
-
-         window.EpoxyTransport.default
-         window.EpoxyTransport.epoxyInfo
-
-         So this version uses .default.
+         Your Epoxy build exports:
+         - default
+         - epoxyInfo
          ===================================================== */
 
       function checkEngine() {
@@ -1217,7 +1216,10 @@
                 CONFIG.SERVICE_WORKER,
                 {
                   scope:
-                    CONFIG.SERVICE_WORKER_SCOPE
+                    CONFIG.SERVICE_WORKER_SCOPE,
+
+                  updateViaCache:
+                    "none"
                 }
               ),
 
@@ -1226,6 +1228,27 @@
             "Service worker registration"
 
           );
+
+
+        /*
+         * Ask the browser to check for the newest
+         * controller.sw.js on every Entry startup.
+         */
+
+        try {
+
+          await registration.update();
+
+        }
+
+        catch (updateError) {
+
+          console.warn(
+            "[Entry] Service worker update check failed:",
+            updateError
+          );
+
+        }
 
 
         setStatus(
@@ -1314,15 +1337,18 @@
       /* =====================================================
          EPOXY TRANSPORT
 
-         FIXED:
-         Uses window.EpoxyTransport.default
+         Uses the actual export from your build:
+         window.EpoxyTransport.default
+
+         Wisp:
+         wss://wisp.mercurywork.shop/
          ===================================================== */
 
       async function createTransport() {
 
         setStatus(
           "Connecting",
-          "Connecting to browser transport…"
+          "Connecting to Mercury Wisp…"
         );
 
 
@@ -1427,7 +1453,7 @@
 
 
       /* =====================================================
-         CREATE BROWSER FRAME
+         CREATE FRAME
          ===================================================== */
 
       function createBrowserFrame(
@@ -1479,7 +1505,7 @@
 
 
       /* =====================================================
-         OPEN WEBSITE
+         OPEN DESTINATION
          ===================================================== */
 
       async function openDestination(
@@ -1562,7 +1588,7 @@
 
 
       /* =====================================================
-         CANCELLED NAVIGATION
+         CANCEL NAVIGATION
          ===================================================== */
 
       function navigationCancelled() {
@@ -1631,7 +1657,7 @@
 
 
           /*
-           * Read destination.
+           * Destination.
            */
 
           const target =
@@ -1639,8 +1665,7 @@
 
 
           /*
-           * Check NSFW before transport initialization
-           * or frame navigation.
+           * NSFW check happens BEFORE frame.go().
            */
 
           const allowed =
@@ -1661,7 +1686,7 @@
 
 
           /*
-           * Verify engine bundles.
+           * Verify bundles.
            */
 
           checkEngine();
@@ -1678,7 +1703,7 @@
 
 
           /*
-           * Epoxy.
+           * Epoxy transport.
            */
 
           const transport =
@@ -1686,7 +1711,7 @@
 
 
           /*
-           * Corridor controller.
+           * Corridor.
            */
 
           const controller =
@@ -1697,7 +1722,7 @@
 
 
           /*
-           * Open destination.
+           * Navigate.
            */
 
           await openDestination(
