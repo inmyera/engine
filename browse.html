@@ -37,21 +37,16 @@
     #browser {
       position: fixed;
       inset: 0;
-
       width: 100%;
       height: 100%;
-
       border: 0;
-
       display: block;
-
-      background: #000;
+      background: #fff;
     }
 
     #status {
       position: fixed;
       inset: 0;
-
       z-index: 999999;
 
       display: flex;
@@ -62,7 +57,6 @@
       padding: 30px;
 
       background: #000;
-
       color: #fff;
 
       text-align: center;
@@ -72,18 +66,31 @@
       display: none;
     }
 
-    #status-title {
-      margin-bottom: 10px;
+    #spinner {
+      width: 38px;
+      height: 38px;
+
+      margin-bottom: 20px;
+
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #fff;
+
+      border-radius: 50%;
+
+      animation: spin 0.8s linear infinite;
+    }
+
+    #title {
+      margin-bottom: 8px;
 
       font-size: 20px;
       font-weight: 600;
     }
 
-    #status-message {
-      max-width: 600px;
+    #message {
+      max-width: 650px;
 
       font-size: 14px;
-
       line-height: 1.5;
 
       opacity: 0.7;
@@ -91,19 +98,28 @@
       word-break: break-word;
     }
 
-    #spinner {
-      width: 34px;
-      height: 34px;
+    #error {
+      display: none;
 
-      margin-bottom: 20px;
+      max-width: 700px;
 
-      border: 3px solid rgba(255,255,255,0.15);
+      margin-top: 20px;
 
-      border-top-color: #fff;
+      padding: 15px;
 
-      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
 
-      animation: spin 0.8s linear infinite;
+      background: #111;
+
+      font-family: monospace;
+
+      font-size: 12px;
+
+      text-align: left;
+
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     @keyframes spin {
@@ -128,463 +144,795 @@
 
     <div id="spinner"></div>
 
-    <div id="status-title">
+    <div id="title">
       Starting Entry
     </div>
 
-    <div id="status-message">
+    <div id="message">
       Initializing browser engine…
     </div>
+
+    <div id="error"></div>
 
   </div>
 
 
-  <!-- Corridor controller API -->
+  <!--
+    IMPORTANT:
+
+    These are normal browser bundles.
+
+    transport/index.js creates:
+      window.EpoxyTransport
+
+    corridor.js creates:
+      window.$corridor
+
+    controller.api.js creates:
+      window.$corridorController
+  -->
+
+  <script src="/transport/index.js"></script>
+
+  <script src="/corridor/corridor.js"></script>
+
   <script src="/controller/controller.api.js"></script>
 
 
-  <script type="module">
+  <script>
 
-    /*
-     * =====================================================
-     * ENTRY BROWSER
-     * =====================================================
-     *
-     * URL format:
-     *
-     * /browse?url=https%3A%2F%2Fexample.com
-     *
-     * =====================================================
-     */
+    (() => {
+
+      "use strict";
 
 
-    import EpoxyTransport from "/transport/index.js";
+      /* =====================================================
+         CONFIG
+         ===================================================== */
+
+      const CONFIG = {
+
+        WISP:
+          "wss://baylib.top/wisp/",
+
+        SERVICE_WORKER:
+          "/controller/controller.sw.js"
+
+      };
 
 
-    /*
-     * -----------------------------------------------------
-     * CONFIGURATION
-     * -----------------------------------------------------
-     */
+      /* =====================================================
+         ELEMENTS
+         ===================================================== */
 
-    const CONFIG = {
-
-      WISP:
-        "wss://baylib.top/wisp/",
-
-      SERVICE_WORKER:
-        "/controller/controller.sw.js"
-
-    };
-
-
-    /*
-     * -----------------------------------------------------
-     * ELEMENTS
-     * -----------------------------------------------------
-     */
-
-    const iframe =
-      document.getElementById(
-        "browser"
-      );
-
-
-    const status =
-      document.getElementById(
-        "status"
-      );
-
-
-    const statusTitle =
-      document.getElementById(
-        "status-title"
-      );
-
-
-    const statusMessage =
-      document.getElementById(
-        "status-message"
-      );
-
-
-    const spinner =
-      document.getElementById(
-        "spinner"
-      );
-
-
-    /*
-     * -----------------------------------------------------
-     * STATUS HELPERS
-     * -----------------------------------------------------
-     */
-
-    function setStatus(
-      title,
-      message
-    ) {
-
-      statusTitle.textContent =
-        title;
-
-
-      statusMessage.textContent =
-        message || "";
-
-    }
-
-
-    function hideStatus() {
-
-      status.classList.add(
-        "hidden"
-      );
-
-    }
-
-
-    function showError(error) {
-
-      console.error(
-        "[Entry]",
-        error
-      );
-
-
-      spinner.style.display =
-        "none";
-
-
-      setStatus(
-        "Browser failed to start",
-        error?.message ||
-        String(error)
-      );
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * GET TARGET URL
-     * -----------------------------------------------------
-     */
-
-    function getTargetURL() {
-
-      const params =
-        new URLSearchParams(
-          window.location.search
+      const iframe =
+        document.getElementById(
+          "browser"
         );
 
 
-      let target =
-        params.get(
-          "url"
+      const status =
+        document.getElementById(
+          "status"
         );
 
 
-      if (!target) {
-
-        throw new Error(
-          "No destination URL was supplied."
+      const spinner =
+        document.getElementById(
+          "spinner"
         );
 
-      }
+
+      const title =
+        document.getElementById(
+          "title"
+        );
 
 
-      target =
-        target.trim();
+      const message =
+        document.getElementById(
+          "message"
+        );
 
 
-      /*
-       * Add HTTPS when the frontend sends:
-       *
-       * example.com
-       */
+      const errorBox =
+        document.getElementById(
+          "error"
+        );
 
-      if (
-        !/^https?:\/\//i.test(
-          target
-        )
+
+      /* =====================================================
+         STATUS
+         ===================================================== */
+
+      function setStatus(
+        newTitle,
+        newMessage
       ) {
 
-        target =
-          "https://" +
-          target;
+        title.textContent =
+          newTitle;
+
+
+        message.textContent =
+          newMessage || "";
 
       }
 
 
-      /*
-       * Validate URL
-       */
+      function hideStatus() {
 
-      let parsed;
-
-
-      try {
-
-        parsed =
-          new URL(
-            target
-          );
-
-      }
-
-      catch {
-
-        throw new Error(
-          "Invalid destination URL."
+        status.classList.add(
+          "hidden"
         );
 
       }
 
 
-      if (
-        parsed.protocol !==
-          "http:" &&
+      function fail(error) {
 
-        parsed.protocol !==
-          "https:"
+        console.error(
+          "[Entry Browser]",
+          error
+        );
+
+
+        spinner.style.display =
+          "none";
+
+
+        title.textContent =
+          "Entry failed to start";
+
+
+        message.textContent =
+          error?.message ||
+          String(error);
+
+
+        errorBox.style.display =
+          "block";
+
+
+        errorBox.textContent =
+          error?.stack ||
+          String(error);
+
+      }
+
+
+      /* =====================================================
+         TIMEOUT HELPER
+         ===================================================== */
+
+      function timeout(
+        promise,
+        milliseconds,
+        description
       ) {
 
-        throw new Error(
-          "Only HTTP and HTTPS destinations are supported."
-        );
+        return Promise.race([
 
-      }
+          promise,
 
+          new Promise(
+            (_, reject) => {
 
-      return parsed.href;
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * REGISTER SERVICE WORKER
-     * -----------------------------------------------------
-     */
-
-    async function registerWorker() {
-
-      if (
-        !(
-          "serviceWorker"
-          in navigator
-        )
-      ) {
-
-        throw new Error(
-          "Service workers are not supported by this browser."
-        );
-
-      }
-
-
-      setStatus(
-        "Starting Entry",
-        "Loading browser controller…"
-      );
-
-
-      const registration =
-        await navigator
-          .serviceWorker
-          .register(
-            CONFIG.SERVICE_WORKER,
-            {
-              scope: "/"
-            }
-          );
-
-
-      await navigator
-        .serviceWorker
-        .ready;
-
-
-      /*
-       * Get whichever worker currently exists.
-       */
-
-      let worker =
-        registration.active ||
-        registration.waiting ||
-        registration.installing;
-
-
-      if (!worker) {
-
-        throw new Error(
-          "The browser controller did not start."
-        );
-
-      }
-
-
-      /*
-       * Wait for an installing worker.
-       */
-
-      if (
-        worker.state ===
-        "installing"
-      ) {
-
-        await new Promise(
-          (resolve, reject) => {
-
-            const timeout =
               setTimeout(
                 () => {
 
                   reject(
                     new Error(
-                      "Timed out waiting for the browser controller."
+                      description +
+                      " timed out."
                     )
                   );
 
                 },
-                15000
+                milliseconds
               );
 
+            }
+          )
 
-            worker.addEventListener(
-              "statechange",
-              () => {
-
-                if (
-                  worker.state ===
-                  "activated"
-                ) {
-
-                  clearTimeout(
-                    timeout
-                  );
-
-                  resolve();
-
-                }
-
-              }
-            );
-
-          }
-        );
+        ]);
 
       }
 
 
-      /*
-       * Refresh worker reference after activation.
-       */
+      /* =====================================================
+         DESTINATION
+         ===================================================== */
 
-      worker =
-        registration.active ||
-        worker;
+      function getTarget() {
 
-
-      return {
-        registration,
-        worker
-      };
-
-    }
+        const params =
+          new URLSearchParams(
+            window.location.search
+          );
 
 
-    /*
-     * -----------------------------------------------------
-     * WAIT FOR CONTROLLER API
-     * -----------------------------------------------------
-     */
-
-    async function waitForControllerAPI() {
-
-      const started =
-        Date.now();
+        let target =
+          params.get(
+            "url"
+          );
 
 
-      while (
-        Date.now() -
-          started <
-        15000
-      ) {
+        if (!target) {
 
-        if (
-          window
-            .$corridorController
-            ?.Controller
-        ) {
-
-          return window
-            .$corridorController;
+          throw new Error(
+            "No destination URL was supplied."
+          );
 
         }
 
 
-        await new Promise(
-          resolve =>
-            setTimeout(
-              resolve,
-              50
-            )
+        target =
+          target.trim();
+
+
+        if (
+          !/^https?:\/\//i.test(
+            target
+          )
+        ) {
+
+          target =
+            "https://" +
+            target;
+
+        }
+
+
+        let parsed;
+
+
+        try {
+
+          parsed =
+            new URL(
+              target
+            );
+
+        }
+
+        catch {
+
+          throw new Error(
+            "The destination URL is invalid."
+          );
+
+        }
+
+
+        if (
+          parsed.protocol !==
+            "http:" &&
+
+          parsed.protocol !==
+            "https:"
+        ) {
+
+          throw new Error(
+            "Only HTTP and HTTPS URLs are supported."
+          );
+
+        }
+
+
+        return parsed.href;
+
+      }
+
+
+      /* =====================================================
+         CHECK ENGINE FILES
+         ===================================================== */
+
+      function checkEngine() {
+
+        setStatus(
+          "Checking engine",
+          "Checking Corridor and Epoxy…"
+        );
+
+
+        if (
+          typeof window.EpoxyTransport !==
+          "function"
+        ) {
+
+          throw new Error(
+            "EpoxyTransport did not load from /transport/index.js"
+          );
+
+        }
+
+
+        if (
+          !window.$corridor
+        ) {
+
+          throw new Error(
+            "Corridor did not load from /corridor/corridor.js"
+          );
+
+        }
+
+
+        if (
+          !window.$corridorController ||
+          typeof window
+            .$corridorController
+            .Controller !==
+            "function"
+        ) {
+
+          throw new Error(
+            "Corridor Controller did not load from /controller/controller.api.js"
+          );
+
+        }
+
+      }
+
+
+      /* =====================================================
+         SERVICE WORKER
+         ===================================================== */
+
+      async function startServiceWorker() {
+
+        setStatus(
+          "Starting controller",
+          "Registering browser service worker…"
+        );
+
+
+        if (
+          !(
+            "serviceWorker"
+            in navigator
+          )
+        ) {
+
+          throw new Error(
+            "This browser does not support service workers."
+          );
+
+        }
+
+
+        const registration =
+          await timeout(
+
+            navigator
+              .serviceWorker
+              .register(
+                CONFIG.SERVICE_WORKER,
+                {
+                  scope: "/"
+                }
+              ),
+
+            15000,
+
+            "Service worker registration"
+
+          );
+
+
+        setStatus(
+          "Starting controller",
+          "Waiting for service worker…"
+        );
+
+
+        await timeout(
+
+          navigator
+            .serviceWorker
+            .ready,
+
+          15000,
+
+          "Service worker activation"
+
+        );
+
+
+        /*
+         * Corridor expects the service worker
+         * currently controlling this page.
+         *
+         * On the first load, registration can
+         * succeed before the page is controlled.
+         */
+
+        if (
+          !navigator
+            .serviceWorker
+            .controller
+        ) {
+
+          setStatus(
+            "Activating controller",
+            "Finishing first-time setup…"
+          );
+
+
+          /*
+           * Give the newly installed worker a
+           * chance to take control.
+           */
+
+          await new Promise(
+            resolve => {
+
+              let finished =
+                false;
+
+
+              const finish =
+                () => {
+
+                  if (finished) {
+                    return;
+                  }
+
+
+                  finished =
+                    true;
+
+
+                  resolve();
+
+                };
+
+
+              navigator
+                .serviceWorker
+                .addEventListener(
+                  "controllerchange",
+                  finish,
+                  {
+                    once: true
+                  }
+                );
+
+
+              setTimeout(
+                finish,
+                3000
+              );
+
+            }
+          );
+
+        }
+
+
+        /*
+         * If this is the very first visit and
+         * the page still isn't controlled,
+         * reload once.
+         */
+
+        if (
+          !navigator
+            .serviceWorker
+            .controller
+        ) {
+
+          const alreadyReloaded =
+            sessionStorage.getItem(
+              "entry-sw-reload"
+            );
+
+
+          if (
+            !alreadyReloaded
+          ) {
+
+            sessionStorage.setItem(
+              "entry-sw-reload",
+              "1"
+            );
+
+
+            location.reload();
+
+
+            await new Promise(
+              () => {}
+            );
+
+          }
+
+
+          throw new Error(
+            "Service worker installed but did not take control of the page."
+          );
+
+        }
+
+
+        sessionStorage.removeItem(
+          "entry-sw-reload"
+        );
+
+
+        return (
+          navigator
+            .serviceWorker
+            .controller
         );
 
       }
 
 
-      throw new Error(
-        "Corridor Controller API did not load."
-      );
+      /* =====================================================
+         EPOXY TRANSPORT
+         ===================================================== */
 
-    }
+      async function startTransport() {
 
-
-    /*
-     * -----------------------------------------------------
-     * START TRANSPORT
-     * -----------------------------------------------------
-     */
-
-    async function createTransport() {
-
-      setStatus(
-        "Connecting",
-        "Connecting browser transport…"
-      );
+        setStatus(
+          "Connecting",
+          "Starting private network transport…"
+        );
 
 
-      const transport =
-        new EpoxyTransport({
-          wisp:
-            CONFIG.WISP
-        });
+        const transport =
+          new window.EpoxyTransport({
+            wisp:
+              CONFIG.WISP
+          });
 
 
-      /*
-       * Some Epoxy builds expose init(),
-       * while others are initialized by
-       * the controller.
-       */
+        /*
+         * The actual Epoxy build in your engine
+         * has init() and sets transport.ready.
+         */
 
-      if (
-        typeof transport.init ===
-        "function"
+        await timeout(
+
+          transport.init(),
+
+          20000,
+
+          "Epoxy transport"
+
+        );
+
+
+        if (
+          !transport.ready
+        ) {
+
+          throw new Error(
+            "Epoxy initialized but did not become ready."
+          );
+
+        }
+
+
+        return transport;
+
+      }
+
+
+      /* =====================================================
+         CORRIDOR CONTROLLER
+         ===================================================== */
+
+      async function startController(
+        serviceWorker,
+        transport
       ) {
+
+        setStatus(
+          "Starting browser",
+          "Initializing Corridor controller…"
+        );
+
+
+        const Controller =
+          window
+            .$corridorController
+            .Controller;
+
+
+        const controller =
+          new Controller({
+
+            serviceworker:
+              serviceWorker,
+
+            transport:
+              transport
+
+          });
+
+
+        await timeout(
+
+          controller.wait(),
+
+          20000,
+
+          "Corridor controller"
+
+        );
+
+
+        return controller;
+
+      }
+
+
+      /* =====================================================
+         OPEN WEBSITE
+         ===================================================== */
+
+      function openWebsite(
+        controller,
+        target
+      ) {
+
+        setStatus(
+          "Opening website",
+          target
+        );
+
+
+        const frame =
+          controller.createFrame(
+            iframe
+          );
+
+
+        if (
+          !frame ||
+          typeof frame.go !==
+            "function"
+        ) {
+
+          throw new Error(
+            "Corridor did not create a valid browser frame."
+          );
+
+        }
+
+
+        /*
+         * frame.go() is synchronous in the
+         * controller included in your ZIP.
+         *
+         * It rewrites the URL into the
+         * /~/sj/... service-worker route.
+         */
+
+        frame.go(
+          target
+        );
+
+
+        /*
+         * Hide loader once iframe starts loading.
+         */
+
+        let hidden =
+          false;
+
+
+        const finish =
+          () => {
+
+            if (hidden) {
+              return;
+            }
+
+
+            hidden =
+              true;
+
+
+            hideStatus();
+
+        };
+
+
+        iframe.addEventListener(
+          "load",
+          finish,
+          {
+            once: true
+          }
+        );
+
+
+        /*
+         * Don't leave the Entry loader covering
+         * the page indefinitely if the remote site
+         * takes a long time to fire iframe load.
+         */
+
+        setTimeout(
+          finish,
+          8000
+        );
+
+      }
+
+
+      /* =====================================================
+         START
+         ===================================================== */
+
+      async function start() {
 
         try {
 
-          await transport.init();
+          setStatus(
+            "Starting Entry",
+            "Reading destination…"
+          );
+
+
+          const target =
+            getTarget();
+
+
+          /*
+           * Verify the three bundles actually
+           * loaded before doing anything else.
+           */
+
+          checkEngine();
+
+
+          /*
+           * Service worker
+           */
+
+          const serviceWorker =
+            await startServiceWorker();
+
+
+          /*
+           * Epoxy / Wisp
+           */
+
+          const transport =
+            await startTransport();
+
+
+          /*
+           * Corridor
+           */
+
+          const controller =
+            await startController(
+              serviceWorker,
+              transport
+            );
+
+
+          /*
+           * Destination
+           */
+
+          openWebsite(
+            controller,
+            target
+          );
 
         }
 
         catch (error) {
 
-          console.warn(
-            "[Entry] Transport init:",
+          fail(
             error
           );
 
@@ -593,187 +941,44 @@
       }
 
 
-      return transport;
+      /* =====================================================
+         GLOBAL ERROR REPORTING
+         ===================================================== */
 
-    }
+      window.addEventListener(
+        "error",
+        event => {
 
-
-    /*
-     * -----------------------------------------------------
-     * CREATE CORRIDOR CONTROLLER
-     * -----------------------------------------------------
-     */
-
-    async function createController(
-      worker,
-      transport
-    ) {
-
-      setStatus(
-        "Starting browser",
-        "Initializing Corridor…"
-      );
-
-
-      const api =
-        await waitForControllerAPI();
-
-
-      const controller =
-        new api.Controller({
-          serviceworker:
-            worker,
-
-          transport:
-            transport
-        });
-
-
-      if (
-        typeof controller.wait ===
-        "function"
-      ) {
-
-        await controller.wait();
-
-      }
-
-
-      return controller;
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * OPEN DESTINATION
-     * -----------------------------------------------------
-     */
-
-    async function openDestination(
-      controller,
-      target
-    ) {
-
-      setStatus(
-        "Opening website",
-        target
-      );
-
-
-      if (
-        typeof controller.createFrame !==
-        "function"
-      ) {
-
-        throw new Error(
-          "Corridor createFrame() is unavailable."
-        );
-
-      }
-
-
-      const frame =
-        controller.createFrame(
-          iframe
-        );
-
-
-      if (
-        !frame ||
-        typeof frame.go !==
-          "function"
-      ) {
-
-        throw new Error(
-          "Corridor frame.go() is unavailable."
-        );
-
-      }
-
-
-      await frame.go(
-        target
-      );
-
-
-      hideStatus();
-
-    }
-
-
-    /*
-     * -----------------------------------------------------
-     * MAIN
-     * -----------------------------------------------------
-     */
-
-    async function start() {
-
-      try {
-
-        const target =
-          getTargetURL();
-
-
-        /*
-         * Register Corridor worker.
-         */
-
-        const {
-          worker
-        } =
-          await registerWorker();
-
-
-        /*
-         * Start Epoxy.
-         */
-
-        const transport =
-          await createTransport();
-
-
-        /*
-         * Create Corridor controller.
-         */
-
-        const controller =
-          await createController(
-            worker,
-            transport
+          console.error(
+            "[Entry window error]",
+            event.error ||
+            event.message
           );
 
-
-        /*
-         * Launch destination.
-         */
-
-        await openDestination(
-          controller,
-          target
-        );
-
-      }
-
-      catch (error) {
-
-        showError(
-          error
-        );
-
-      }
-
-    }
+        }
+      );
 
 
-    /*
-     * -----------------------------------------------------
-     * START ENTRY
-     * -----------------------------------------------------
-     */
+      window.addEventListener(
+        "unhandledrejection",
+        event => {
 
-    start();
+          console.error(
+            "[Entry promise rejection]",
+            event.reason
+          );
+
+        }
+      );
+
+
+      /* =====================================================
+         GO
+         ===================================================== */
+
+      start();
+
+    })();
 
   </script>
 
