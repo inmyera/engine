@@ -37,16 +37,20 @@
     #browser {
       position: fixed;
       inset: 0;
+
       width: 100%;
       height: 100%;
+
       border: 0;
       display: block;
+
       background: #fff;
     }
 
     #status {
       position: fixed;
       inset: 0;
+
       z-index: 999999;
 
       display: flex;
@@ -72,7 +76,7 @@
 
       margin-bottom: 20px;
 
-      border: 3px solid rgba(255,255,255,0.15);
+      border: 3px solid rgba(255, 255, 255, 0.15);
       border-top-color: #fff;
 
       border-radius: 50%;
@@ -101,20 +105,33 @@
     #error {
       display: none;
 
-      max-width: 700px;
+      width: min(700px, 90vw);
+
+      max-height: 300px;
+
+      overflow: auto;
 
       margin-top: 20px;
 
       padding: 15px;
 
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
 
       background: #111;
 
-      font-family: monospace;
+      color: #fff;
+
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
 
       font-size: 12px;
+      line-height: 1.5;
 
       text-align: left;
 
@@ -157,20 +174,9 @@
   </div>
 
 
-  <!--
-    IMPORTANT:
-
-    These are normal browser bundles.
-
-    transport/index.js creates:
-      window.EpoxyTransport
-
-    corridor.js creates:
-      window.$corridor
-
-    controller.api.js creates:
-      window.$corridorController
-  -->
+  <!-- =====================================================
+       ENGINE FILES
+       ===================================================== -->
 
   <script src="/transport/index.js"></script>
 
@@ -187,7 +193,7 @@
 
 
       /* =====================================================
-         CONFIG
+         CONFIGURATION
          ===================================================== */
 
       const CONFIG = {
@@ -196,7 +202,10 @@
           "wss://baylib.top/wisp/",
 
         SERVICE_WORKER:
-          "/controller/controller.sw.js"
+          "/controller/controller.sw.js",
+
+        SERVICE_WORKER_SCOPE:
+          "/"
 
       };
 
@@ -242,7 +251,7 @@
 
 
       /* =====================================================
-         STATUS
+         STATUS HELPERS
          ===================================================== */
 
       function setStatus(
@@ -302,10 +311,10 @@
 
 
       /* =====================================================
-         TIMEOUT HELPER
+         TIMEOUT
          ===================================================== */
 
-      function timeout(
+      function withTimeout(
         promise,
         milliseconds,
         description
@@ -313,7 +322,9 @@
 
         return Promise.race([
 
-          promise,
+          Promise.resolve(
+            promise
+          ),
 
           new Promise(
             (_, reject) => {
@@ -324,7 +335,9 @@
                   reject(
                     new Error(
                       description +
-                      " timed out."
+                      " timed out after " +
+                      milliseconds +
+                      "ms."
                     )
                   );
 
@@ -341,7 +354,7 @@
 
 
       /* =====================================================
-         DESTINATION
+         TARGET URL
          ===================================================== */
 
       function getTarget() {
@@ -399,22 +412,19 @@
         catch {
 
           throw new Error(
-            "The destination URL is invalid."
+            "Invalid destination URL."
           );
 
         }
 
 
         if (
-          parsed.protocol !==
-            "http:" &&
-
-          parsed.protocol !==
-            "https:"
+          parsed.protocol !== "http:" &&
+          parsed.protocol !== "https:"
         ) {
 
           throw new Error(
-            "Only HTTP and HTTPS URLs are supported."
+            "Only HTTP and HTTPS destinations are supported."
           );
 
         }
@@ -426,50 +436,104 @@
 
 
       /* =====================================================
-         CHECK ENGINE FILES
+         ENGINE CHECK
          ===================================================== */
 
       function checkEngine() {
 
         setStatus(
           "Checking engine",
-          "Checking Corridor and Epoxy…"
+          "Checking Epoxy and Corridor…"
         );
 
 
+        /*
+         * Epoxy browser bundle:
+         *
+         * window.EpoxyTransport
+         * window.EpoxyTransport.EpoxyClient
+         */
+
         if (
-          typeof window.EpoxyTransport !==
-          "function"
+          !window.EpoxyTransport
         ) {
 
           throw new Error(
-            "EpoxyTransport did not load from /transport/index.js"
+            "EpoxyTransport was not created by /transport/index.js"
           );
 
         }
 
+
+        if (
+          typeof window
+            .EpoxyTransport
+            .EpoxyClient !==
+          "function"
+        ) {
+
+          const keys =
+            Object.keys(
+              window.EpoxyTransport
+            );
+
+
+          throw new Error(
+            "EpoxyClient was not found. " +
+            "Available EpoxyTransport exports: " +
+            keys.join(", ")
+          );
+
+        }
+
+
+        /*
+         * Corridor WASM/browser runtime.
+         */
 
         if (
           !window.$corridor
         ) {
 
           throw new Error(
-            "Corridor did not load from /corridor/corridor.js"
+            "Corridor was not created by /corridor/corridor.js"
+          );
+
+        }
+
+
+        /*
+         * Corridor controller API.
+         */
+
+        if (
+          !window.$corridorController
+        ) {
+
+          throw new Error(
+            "$corridorController was not created by /controller/controller.api.js"
           );
 
         }
 
 
         if (
-          !window.$corridorController ||
           typeof window
             .$corridorController
             .Controller !==
-            "function"
+          "function"
         ) {
 
+          const keys =
+            Object.keys(
+              window.$corridorController
+            );
+
+
           throw new Error(
-            "Corridor Controller did not load from /controller/controller.api.js"
+            "Corridor Controller constructor was not found. " +
+            "Available controller exports: " +
+            keys.join(", ")
           );
 
         }
@@ -481,7 +545,7 @@
          SERVICE WORKER
          ===================================================== */
 
-      async function startServiceWorker() {
+      async function registerServiceWorker() {
 
         setStatus(
           "Starting controller",
@@ -497,21 +561,22 @@
         ) {
 
           throw new Error(
-            "This browser does not support service workers."
+            "Service workers are not supported by this browser."
           );
 
         }
 
 
         const registration =
-          await timeout(
+          await withTimeout(
 
             navigator
               .serviceWorker
               .register(
                 CONFIG.SERVICE_WORKER,
                 {
-                  scope: "/"
+                  scope:
+                    CONFIG.SERVICE_WORKER_SCOPE
                 }
               ),
 
@@ -524,11 +589,11 @@
 
         setStatus(
           "Starting controller",
-          "Waiting for service worker…"
+          "Waiting for service worker activation…"
         );
 
 
-        await timeout(
+        await withTimeout(
 
           navigator
             .serviceWorker
@@ -542,11 +607,9 @@
 
 
         /*
-         * Corridor expects the service worker
-         * currently controlling this page.
-         *
-         * On the first load, registration can
-         * succeed before the page is controlled.
+         * The worker may have installed successfully
+         * without controlling the current browse page
+         * yet.
          */
 
         if (
@@ -557,76 +620,13 @@
 
           setStatus(
             "Activating controller",
-            "Finishing first-time setup…"
+            "Finishing first-time browser setup…"
           );
 
-
-          /*
-           * Give the newly installed worker a
-           * chance to take control.
-           */
-
-          await new Promise(
-            resolve => {
-
-              let finished =
-                false;
-
-
-              const finish =
-                () => {
-
-                  if (finished) {
-                    return;
-                  }
-
-
-                  finished =
-                    true;
-
-
-                  resolve();
-
-                };
-
-
-              navigator
-                .serviceWorker
-                .addEventListener(
-                  "controllerchange",
-                  finish,
-                  {
-                    once: true
-                  }
-                );
-
-
-              setTimeout(
-                finish,
-                3000
-              );
-
-            }
-          );
-
-        }
-
-
-        /*
-         * If this is the very first visit and
-         * the page still isn't controlled,
-         * reload once.
-         */
-
-        if (
-          !navigator
-            .serviceWorker
-            .controller
-        ) {
 
           const alreadyReloaded =
             sessionStorage.getItem(
-              "entry-sw-reload"
+              "entry-service-worker-reload"
             );
 
 
@@ -635,12 +635,12 @@
           ) {
 
             sessionStorage.setItem(
-              "entry-sw-reload",
-              "1"
+              "entry-service-worker-reload",
+              "yes"
             );
 
 
-            location.reload();
+            window.location.reload();
 
 
             await new Promise(
@@ -651,22 +651,25 @@
 
 
           throw new Error(
-            "Service worker installed but did not take control of the page."
+            "Service worker installed but did not take control of this page."
           );
 
         }
 
 
         sessionStorage.removeItem(
-          "entry-sw-reload"
+          "entry-service-worker-reload"
         );
 
 
-        return (
-          navigator
-            .serviceWorker
-            .controller
-        );
+        return {
+          registration,
+
+          worker:
+            navigator
+              .serviceWorker
+              .controller
+        };
 
       }
 
@@ -675,43 +678,59 @@
          EPOXY TRANSPORT
          ===================================================== */
 
-      async function startTransport() {
+      async function createTransport() {
 
         setStatus(
           "Connecting",
-          "Starting private network transport…"
+          "Connecting to browser transport…"
         );
 
 
+        const EpoxyClient =
+          window
+            .EpoxyTransport
+            .EpoxyClient;
+
+
+        /*
+         * Correct browser-build constructor.
+         */
+
         const transport =
-          new window.EpoxyTransport({
+          new EpoxyClient({
+
             wisp:
               CONFIG.WISP
+
           });
 
 
         /*
-         * The actual Epoxy build in your engine
-         * has init() and sets transport.ready.
+         * Different Epoxy versions initialize
+         * slightly differently.
+         *
+         * If init() exists, initialize it here.
          */
 
-        await timeout(
-
-          transport.init(),
-
-          20000,
-
-          "Epoxy transport"
-
-        );
-
-
         if (
-          !transport.ready
+          typeof transport.init ===
+          "function"
         ) {
 
-          throw new Error(
-            "Epoxy initialized but did not become ready."
+          setStatus(
+            "Connecting",
+            "Initializing Epoxy transport…"
+          );
+
+
+          await withTimeout(
+
+            transport.init(),
+
+            20000,
+
+            "Epoxy initialization"
+
           );
 
         }
@@ -726,8 +745,8 @@
          CORRIDOR CONTROLLER
          ===================================================== */
 
-      async function startController(
-        serviceWorker,
+      async function createController(
+        worker,
         transport
       ) {
 
@@ -747,7 +766,7 @@
           new Controller({
 
             serviceworker:
-              serviceWorker,
+              worker,
 
             transport:
               transport
@@ -755,15 +774,22 @@
           });
 
 
-        await timeout(
+        if (
+          typeof controller.wait ===
+          "function"
+        ) {
 
-          controller.wait(),
+          await withTimeout(
 
-          20000,
+            controller.wait(),
 
-          "Corridor controller"
+            20000,
 
-        );
+            "Corridor controller"
+
+          );
+
+        }
 
 
         return controller;
@@ -772,10 +798,62 @@
 
 
       /* =====================================================
-         OPEN WEBSITE
+         CREATE FRAME
          ===================================================== */
 
-      function openWebsite(
+      function createBrowserFrame(
+        controller
+      ) {
+
+        if (
+          typeof controller.createFrame !==
+          "function"
+        ) {
+
+          throw new Error(
+            "Corridor Controller does not provide createFrame()."
+          );
+
+        }
+
+
+        const frame =
+          controller.createFrame(
+            iframe
+          );
+
+
+        if (!frame) {
+
+          throw new Error(
+            "Corridor failed to create the browser frame."
+          );
+
+        }
+
+
+        if (
+          typeof frame.go !==
+          "function"
+        ) {
+
+          throw new Error(
+            "Corridor frame does not provide go()."
+          );
+
+        }
+
+
+        return frame;
+
+      }
+
+
+      /* =====================================================
+         OPEN DESTINATION
+         ===================================================== */
+
+      async function openDestination(
         controller,
         target
       ) {
@@ -787,60 +865,29 @@
 
 
         const frame =
-          controller.createFrame(
-            iframe
+          createBrowserFrame(
+            controller
           );
 
 
-        if (
-          !frame ||
-          typeof frame.go !==
-            "function"
-        ) {
-
-          throw new Error(
-            "Corridor did not create a valid browser frame."
-          );
-
-        }
-
-
-        /*
-         * frame.go() is synchronous in the
-         * controller included in your ZIP.
-         *
-         * It rewrites the URL into the
-         * /~/sj/... service-worker route.
-         */
-
-        frame.go(
-          target
-        );
-
-
-        /*
-         * Hide loader once iframe starts loading.
-         */
-
-        let hidden =
+        let finished =
           false;
 
 
-        const finish =
-          () => {
+        function finish() {
 
-            if (hidden) {
-              return;
-            }
-
-
-            hidden =
-              true;
+          if (finished) {
+            return;
+          }
 
 
-            hideStatus();
+          finished =
+            true;
 
-        };
+
+          hideStatus();
+
+        }
 
 
         iframe.addEventListener(
@@ -853,21 +900,58 @@
 
 
         /*
-         * Don't leave the Entry loader covering
-         * the page indefinitely if the remote site
-         * takes a long time to fire iframe load.
+         * Corridor's frame.go() may be synchronous
+         * depending on the controller build.
+         */
+
+        const result =
+          frame.go(
+            target
+          );
+
+
+        /*
+         * If this build happens to return a Promise,
+         * wait for it.
+         */
+
+        if (
+          result &&
+          typeof result.then ===
+            "function"
+        ) {
+
+          await withTimeout(
+
+            result,
+
+            20000,
+
+            "Website navigation"
+
+          );
+
+        }
+
+
+        /*
+         * Safety fallback:
+         *
+         * Once Corridor has navigated the iframe,
+         * don't leave the loading screen permanently
+         * covering a slow destination.
          */
 
         setTimeout(
           finish,
-          8000
+          10000
         );
 
       }
 
 
       /* =====================================================
-         START
+         MAIN STARTUP
          ===================================================== */
 
       async function start() {
@@ -880,50 +964,55 @@
           );
 
 
+          /*
+           * Destination.
+           */
+
           const target =
             getTarget();
 
 
           /*
-           * Verify the three bundles actually
-           * loaded before doing anything else.
+           * Verify all browser bundles.
            */
 
           checkEngine();
 
 
           /*
-           * Service worker
+           * Service worker.
            */
 
-          const serviceWorker =
-            await startServiceWorker();
+          const {
+            worker
+          } =
+            await registerServiceWorker();
 
 
           /*
-           * Epoxy / Wisp
+           * Epoxy + Wisp.
            */
 
           const transport =
-            await startTransport();
+            await createTransport();
 
 
           /*
-           * Corridor
+           * Corridor.
            */
 
           const controller =
-            await startController(
-              serviceWorker,
+            await createController(
+              worker,
               transport
             );
 
 
           /*
-           * Destination
+           * Navigate.
            */
 
-          openWebsite(
+          await openDestination(
             controller,
             target
           );
@@ -950,7 +1039,7 @@
         event => {
 
           console.error(
-            "[Entry window error]",
+            "[Entry global error]",
             event.error ||
             event.message
           );
@@ -964,7 +1053,7 @@
         event => {
 
           console.error(
-            "[Entry promise rejection]",
+            "[Entry unhandled rejection]",
             event.reason
           );
 
@@ -973,7 +1062,7 @@
 
 
       /* =====================================================
-         GO
+         START ENTRY
          ===================================================== */
 
       start();
