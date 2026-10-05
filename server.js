@@ -2,18 +2,28 @@ const express = require("express");
 const path = require("path");
 
 const app = express();
-const PORT = process.env.PORT || process.env.SERVER_PORT || 3000;
+
+const PORT =
+  process.env.PORT ||
+  process.env.SERVER_PORT ||
+  3000;
+
 
 /* =========================================================
    CORS
    ========================================================= */
 
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "https://userivet.net");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "https://userivet.net"
+  );
+
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
   );
+
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Range"
@@ -26,260 +36,261 @@ app.use((req, res, next) => {
   next();
 });
 
-/* =========================================================
-   BODY HANDLING
-
-   Keep request bodies raw so POST requests can be forwarded.
-   ========================================================= */
-
-app.use(
-  express.raw({
-    type: () => true,
-    limit: "25mb"
-  })
-);
 
 /* =========================================================
-   PROXY ROUTE
-
-   Usage:
-
-   /proxy?url=https%3A%2F%2Fexample.com
+   CACHE / SERVICE WORKER HEADERS
    ========================================================= */
 
-app.all("/proxy", async (req, res) => {
-  try {
-    const target = req.query.url;
-
-    if (!target || typeof target !== "string") {
-      return res.status(400).json({
-        error: "Missing url parameter",
-        example: "/proxy?url=https%3A%2F%2Fexample.com"
-      });
-    }
-
-    let targetURL;
-
-    try {
-      targetURL = new URL(target);
-    } catch {
-      return res.status(400).json({
-        error: "Invalid target URL"
-      });
-    }
-
-    if (
-      targetURL.protocol !== "http:" &&
-      targetURL.protocol !== "https:"
-    ) {
-      return res.status(400).json({
-        error: "Only HTTP and HTTPS URLs are supported"
-      });
-    }
-
-    /* -----------------------------------------
-       Forward selected request headers
-       ----------------------------------------- */
-
-    const headers = {};
-
-    const forwardHeaders = [
-      "accept",
-      "accept-language",
-      "content-type",
-      "range",
-      "user-agent"
-    ];
-
-    for (const name of forwardHeaders) {
-      if (req.headers[name]) {
-        headers[name] = req.headers[name];
-      }
-    }
-
-    const options = {
-      method: req.method,
-      headers,
-      redirect: "follow"
-    };
-
-    /*
-     * GET and HEAD requests cannot have bodies.
-     */
-    if (
-      req.method !== "GET" &&
-      req.method !== "HEAD" &&
-      req.body &&
-      req.body.length
-    ) {
-      options.body = req.body;
-    }
-
-    /* -----------------------------------------
-       Fetch destination
-       ----------------------------------------- */
-
-    const upstream = await fetch(targetURL.href, options);
-
-    /* -----------------------------------------
-       Response headers
-       ----------------------------------------- */
-
-    const contentType =
-      upstream.headers.get("content-type");
-
-    if (contentType) {
-      res.setHeader("Content-Type", contentType);
-    }
-
-    const contentLength =
-      upstream.headers.get("content-length");
-
-    if (contentLength) {
-      res.setHeader("Content-Length", contentLength);
-    }
-
-    const contentRange =
-      upstream.headers.get("content-range");
-
-    if (contentRange) {
-      res.setHeader("Content-Range", contentRange);
-    }
-
-    const acceptRanges =
-      upstream.headers.get("accept-ranges");
-
-    if (acceptRanges) {
-      res.setHeader("Accept-Ranges", acceptRanges);
-    }
-
-    /*
-     * Don't copy frame restrictions from the destination.
-     * Your Entry frontend displays the result inside an iframe.
-     */
-
-    res.status(upstream.status);
-
-    /* -----------------------------------------
-       Send response
-       ----------------------------------------- */
-
-    const data = Buffer.from(
-      await upstream.arrayBuffer()
+app.use((req, res, next) => {
+  if (
+    req.path.endsWith(".sw.js") ||
+    req.path.includes("/controller/")
+  ) {
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
     );
-
-    res.send(data);
-
-  } catch (error) {
-    console.error("Proxy error:", error);
-
-    res.status(502).json({
-      error: "Proxy request failed",
-      message: error.message
-    });
   }
+
+  next();
 });
 
+
 /* =========================================================
-   ENGINE STATIC FILES
+   BROWSER RUNNER
+
+   Example:
+   /browse?url=https%3A%2F%2Fexample.com
+   ========================================================= */
+
+app.get("/browse", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "browse.html")
+  );
+});
+
+
+/* =========================================================
+   HEALTH CHECK
+   ========================================================= */
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    engine: "entry",
+    browser: "/browse",
+    timestamp: new Date().toISOString()
+  });
+});
+
+
+/* =========================================================
+   STATIC ENGINE FILES
+
+   Serves:
+
+   /controller/controller.sw.js
+   /controller/controller.inject.js
+   /controller/controller.api.js
+
+   /corridor/corridor.js
+   /corridor/corridor.wasm
+
+   /transport/index.js
+
+   /browse.html
    ========================================================= */
 
 app.use(
-  express.static(path.join(__dirname), {
-    extensions: ["html"],
+  express.static(
+    path.join(__dirname),
+    {
+      extensions: ["html"],
 
-    setHeaders(res, filePath) {
-      if (filePath.endsWith(".wasm")) {
-        res.setHeader(
-          "Content-Type",
-          "application/wasm"
-        );
-      }
+      setHeaders(res, filePath) {
 
-      if (filePath.endsWith(".js")) {
-        res.setHeader(
-          "Content-Type",
-          "application/javascript; charset=utf-8"
-        );
-      }
+        /*
+         * WASM
+         */
 
-      if (filePath.endsWith(".sw.js")) {
-        res.setHeader(
-          "Service-Worker-Allowed",
-          "/"
-        );
+        if (
+          filePath.endsWith(".wasm")
+        ) {
+          res.setHeader(
+            "Content-Type",
+            "application/wasm"
+          );
+        }
 
-        res.setHeader(
-          "Cache-Control",
-          "no-store"
-        );
+
+        /*
+         * JavaScript
+         */
+
+        if (
+          filePath.endsWith(".js")
+        ) {
+          res.setHeader(
+            "Content-Type",
+            "application/javascript; charset=utf-8"
+          );
+        }
+
+
+        /*
+         * Service Worker
+         */
+
+        if (
+          filePath.endsWith(".sw.js")
+        ) {
+          res.setHeader(
+            "Service-Worker-Allowed",
+            "/"
+          );
+
+          res.setHeader(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate"
+          );
+        }
       }
     }
-  })
+  )
 );
 
+
 /* =========================================================
-   ROOT
+   ROOT PAGE
    ========================================================= */
 
 app.get("/", (req, res) => {
   res.type("html").send(`
-<!doctype html>
+<!DOCTYPE html>
 
-<html>
+<html lang="en">
 
 <head>
 
-<meta charset="utf-8">
+<meta charset="UTF-8">
 
 <meta
   name="viewport"
-  content="width=device-width,initial-scale=1"
+  content="width=device-width, initial-scale=1.0"
 >
 
 <title>Entry Engine</title>
 
 <style>
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   background: #000;
+
   color: #fff;
-  font-family: system-ui, sans-serif;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 main {
+  width: min(
+    90%,
+    600px
+  );
+
   text-align: center;
 }
 
 h1 {
-  margin-bottom: 8px;
+  margin:
+    0
+    0
+    10px;
+
+  font-size: 32px;
 }
 
 p {
-  opacity: .7;
+  margin:
+    8px
+    0;
+
+  opacity: 0.7;
 }
 
 code {
+  display: inline-block;
+
+  margin-top: 16px;
+
+  padding:
+    10px
+    14px;
+
+  border-radius: 10px;
+
+  background: #111;
+
   color: #2ff5c8;
+}
+
+.status {
+  margin-top: 24px;
+
+  font-size: 14px;
+
+  opacity: 0.55;
 }
 
 </style>
 
 </head>
 
+
 <body>
 
 <main>
 
-<h1>Entry Engine</h1>
+<h1>
+Entry Engine
+</h1>
 
-<p>Engine server is online.</p>
+<p>
+Engine server is online.
+</p>
 
-<code>/proxy?url=...</code>
+<p>
+Corridor browser endpoint:
+</p>
+
+<code>
+/browse?url=...
+</code>
+
+<div class="status">
+Server running successfully
+</div>
 
 </main>
 
@@ -289,18 +300,6 @@ code {
   `);
 });
 
-/* =========================================================
-   HEALTH
-   ========================================================= */
-
-app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
-    engine: "entry",
-    proxy: "/proxy?url=",
-    timestamp: new Date().toISOString()
-  });
-});
 
 /* =========================================================
    404
@@ -313,14 +312,65 @@ app.use((req, res) => {
   });
 });
 
+
 /* =========================================================
-   START
+   ERROR HANDLER
    ========================================================= */
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("--------------------------------");
-  console.log("Entry Engine Online");
-  console.log(`Port: ${PORT}`);
-  console.log("Proxy: /proxy?url=");
-  console.log("--------------------------------");
+app.use((err, req, res, next) => {
+  console.error(
+    "Entry Engine Error:",
+    err
+  );
+
+  if (
+    res.headersSent
+  ) {
+    return next(err);
+  }
+
+  res.status(500).json({
+    error: "Internal server error",
+    message:
+      process.env.NODE_ENV ===
+      "development"
+        ? err.message
+        : undefined
+  });
 });
+
+
+/* =========================================================
+   START SERVER
+   ========================================================= */
+
+app.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+
+    console.log(
+      "================================"
+    );
+
+    console.log(
+      "Entry Engine"
+    );
+
+    console.log(
+      `Listening on port ${PORT}`
+    );
+
+    console.log(
+      "Browser endpoint: /browse"
+    );
+
+    console.log(
+      "Health endpoint: /health"
+    );
+
+    console.log(
+      "================================"
+    );
+  }
+);
