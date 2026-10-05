@@ -37,20 +37,20 @@
     #browser {
       position: fixed;
       inset: 0;
-
       width: 100%;
       height: 100%;
-
       border: 0;
       display: block;
-
       background: #fff;
     }
+
+    /* =====================================================
+       LOADING / ERROR SCREEN
+       ===================================================== */
 
     #status {
       position: fixed;
       inset: 0;
-
       z-index: 999999;
 
       display: flex;
@@ -106,13 +106,11 @@
       display: none;
 
       width: min(700px, 90vw);
-
-      max-height: 300px;
+      max-height: 320px;
 
       overflow: auto;
 
       margin-top: 20px;
-
       padding: 15px;
 
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -144,6 +142,235 @@
         transform: rotate(360deg);
       }
     }
+
+    /* =====================================================
+       NSFW WARNING
+       ===================================================== */
+
+    #nsfw-warning {
+      position: fixed;
+      inset: 0;
+
+      z-index: 1000000;
+
+      display: none;
+      align-items: center;
+      justify-content: center;
+
+      padding: 24px;
+
+      background:
+        radial-gradient(
+          circle at top,
+          #291010 0%,
+          #0b0b0b 48%,
+          #000 100%
+        );
+
+      color: #fff;
+    }
+
+    #nsfw-warning.visible {
+      display: flex;
+    }
+
+    .nsfw-card {
+      width: min(500px, 100%);
+
+      padding: 34px;
+
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+
+      background: rgba(18, 18, 18, 0.97);
+
+      box-shadow:
+        0 25px 80px rgba(0, 0, 0, 0.7);
+
+      text-align: center;
+    }
+
+    .nsfw-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      margin-bottom: 18px;
+
+      padding: 7px 12px;
+
+      border: 1px solid rgba(255, 90, 90, 0.45);
+      border-radius: 999px;
+
+      background: rgba(255, 70, 70, 0.12);
+
+      color: #ff7777;
+
+      font-size: 12px;
+      font-weight: 800;
+
+      letter-spacing: 1.2px;
+    }
+
+    .nsfw-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 72px;
+      height: 72px;
+
+      margin: 0 auto 20px;
+
+      border: 2px solid rgba(255, 90, 90, 0.5);
+      border-radius: 50%;
+
+      background: rgba(255, 70, 70, 0.1);
+
+      color: #ff7474;
+
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .nsfw-card h1 {
+      margin: 0 0 12px;
+
+      font-size: 27px;
+    }
+
+    .nsfw-card p {
+      margin: 0 auto;
+
+      max-width: 410px;
+
+      color: rgba(255, 255, 255, 0.67);
+
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    #nsfw-domain {
+      display: block;
+
+      margin: 18px 0;
+      padding: 12px;
+
+      border-radius: 10px;
+
+      background: rgba(255, 255, 255, 0.055);
+
+      color: rgba(255, 255, 255, 0.9);
+
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+
+      font-size: 13px;
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nsfw-confirm {
+      display: flex;
+      align-items: flex-start;
+
+      gap: 10px;
+
+      margin: 20px 0;
+      padding: 14px;
+
+      border-radius: 12px;
+
+      background: rgba(255, 255, 255, 0.04);
+
+      text-align: left;
+    }
+
+    .nsfw-confirm input {
+      width: 18px;
+      height: 18px;
+
+      margin-top: 1px;
+
+      cursor: pointer;
+    }
+
+    .nsfw-confirm label {
+      color: rgba(255, 255, 255, 0.8);
+
+      font-size: 13px;
+      line-height: 1.5;
+
+      cursor: pointer;
+    }
+
+    .nsfw-buttons {
+      display: grid;
+
+      grid-template-columns:
+        1fr
+        1fr;
+
+      gap: 10px;
+
+      margin-top: 20px;
+    }
+
+    .nsfw-button {
+      width: 100%;
+
+      padding: 13px 16px;
+
+      border: 0;
+      border-radius: 11px;
+
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+
+      cursor: pointer;
+
+      transition:
+        transform 0.15s ease,
+        opacity 0.15s ease;
+    }
+
+    .nsfw-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .nsfw-button.back {
+      background: #242424;
+      color: #fff;
+    }
+
+    .nsfw-button.continue {
+      background: #fff;
+      color: #000;
+    }
+
+    .nsfw-button.continue:disabled {
+      opacity: 0.3;
+
+      cursor: not-allowed;
+
+      transform: none;
+    }
+
+    .nsfw-footer {
+      margin-top: 18px !important;
+
+      font-size: 11px !important;
+
+      opacity: 0.6;
+    }
   </style>
 </head>
 
@@ -156,6 +383,10 @@
     referrerpolicy="no-referrer"
   ></iframe>
 
+
+  <!-- =====================================================
+       LOADING SCREEN
+       ===================================================== -->
 
   <div id="status">
 
@@ -170,6 +401,86 @@
     </div>
 
     <div id="error"></div>
+
+  </div>
+
+
+  <!-- =====================================================
+       NSFW WARNING
+       ===================================================== -->
+
+  <div id="nsfw-warning">
+
+    <div class="nsfw-card">
+
+      <div class="nsfw-badge">
+        NSFW • 18+
+      </div>
+
+      <div class="nsfw-icon">
+        18+
+      </div>
+
+      <h1>
+        Adult Content Warning
+      </h1>
+
+      <p>
+        Entry has identified this destination as potentially
+        containing sexually explicit or other adult content.
+      </p>
+
+      <span id="nsfw-domain">
+        website
+      </span>
+
+      <p>
+        This destination is blocked by default.
+        You must confirm that you are 18 years of age or older
+        before Entry will open the website.
+      </p>
+
+      <div class="nsfw-confirm">
+
+        <input
+          type="checkbox"
+          id="nsfw-age-confirm"
+        >
+
+        <label for="nsfw-age-confirm">
+          I confirm that I am 18 years of age or older and
+          understand that this destination may contain NSFW
+          or sexually explicit material.
+        </label>
+
+      </div>
+
+      <div class="nsfw-buttons">
+
+        <button
+          type="button"
+          class="nsfw-button back"
+          id="nsfw-back"
+        >
+          Go back
+        </button>
+
+        <button
+          type="button"
+          class="nsfw-button continue"
+          id="nsfw-continue"
+          disabled
+        >
+          Continue to the site
+        </button>
+
+      </div>
+
+      <p class="nsfw-footer">
+        NSFW browsing is disabled by default.
+      </p>
+
+    </div>
 
   </div>
 
@@ -193,7 +504,7 @@
 
 
       /* =====================================================
-         CONFIGURATION
+         CONFIG
          ===================================================== */
 
       const CONFIG = {
@@ -208,6 +519,46 @@
           "/"
 
       };
+
+
+      /* =====================================================
+         NSFW DOMAINS
+         ===================================================== */
+
+      const NSFW_DOMAINS = [
+
+        "pornhub.com",
+        "xvideos.com",
+        "xnxx.com",
+        "xhamster.com",
+        "redtube.com",
+        "youporn.com",
+        "tube8.com",
+        "spankbang.com",
+        "eporner.com",
+        "hqporner.com",
+        "beeg.com",
+        "tnaflix.com",
+        "drtuber.com",
+        "porn.com",
+        "pornone.com",
+        "youjizz.com",
+        "txxx.com",
+        "sunporno.com",
+        "porndig.com",
+        "thumbzilla.com",
+
+        "onlyfans.com",
+        "fansly.com",
+        "manyvids.com",
+
+        "chaturbate.com",
+        "stripchat.com",
+        "cam4.com",
+        "bongacams.com",
+        "livejasmin.com"
+
+      ];
 
 
       /* =====================================================
@@ -250,8 +601,38 @@
         );
 
 
+      const nsfwWarning =
+        document.getElementById(
+          "nsfw-warning"
+        );
+
+
+      const nsfwDomain =
+        document.getElementById(
+          "nsfw-domain"
+        );
+
+
+      const nsfwAgeConfirm =
+        document.getElementById(
+          "nsfw-age-confirm"
+        );
+
+
+      const nsfwContinue =
+        document.getElementById(
+          "nsfw-continue"
+        );
+
+
+      const nsfwBack =
+        document.getElementById(
+          "nsfw-back"
+        );
+
+
       /* =====================================================
-         STATUS HELPERS
+         STATUS
          ===================================================== */
 
       function setStatus(
@@ -272,6 +653,15 @@
       function hideStatus() {
 
         status.classList.add(
+          "hidden"
+        );
+
+      }
+
+
+      function showStatus() {
+
+        status.classList.remove(
           "hidden"
         );
 
@@ -354,7 +744,7 @@
 
 
       /* =====================================================
-         TARGET URL
+         TARGET
          ===================================================== */
 
       function getTarget() {
@@ -436,7 +826,273 @@
 
 
       /* =====================================================
+         NSFW DETECTION
+         ===================================================== */
+
+      function normalizeHostname(
+        hostname
+      ) {
+
+        return hostname
+          .toLowerCase()
+          .replace(
+            /^www\./,
+            ""
+          );
+
+      }
+
+
+      function hostnameMatches(
+        hostname,
+        domain
+      ) {
+
+        hostname =
+          normalizeHostname(
+            hostname
+          );
+
+
+        domain =
+          normalizeHostname(
+            domain
+          );
+
+
+        return (
+          hostname === domain ||
+          hostname.endsWith(
+            "." + domain
+          )
+        );
+
+      }
+
+
+      function isNSFW(
+        target
+      ) {
+
+        let parsed;
+
+
+        try {
+
+          parsed =
+            new URL(
+              target
+            );
+
+        }
+
+        catch {
+
+          return false;
+
+        }
+
+
+        const hostname =
+          normalizeHostname(
+            parsed.hostname
+          );
+
+
+        return NSFW_DOMAINS.some(
+          domain =>
+            hostnameMatches(
+              hostname,
+              domain
+            )
+        );
+
+      }
+
+
+      /* =====================================================
+         NSFW SESSION
+         ===================================================== */
+
+      function nsfwEnabledForSession() {
+
+        return (
+          sessionStorage.getItem(
+            "entry-nsfw-enabled"
+          ) ===
+          "true"
+        );
+
+      }
+
+
+      function enableNSFWForSession() {
+
+        sessionStorage.setItem(
+          "entry-nsfw-enabled",
+          "true"
+        );
+
+      }
+
+
+      /* =====================================================
+         NSFW WARNING
+         ===================================================== */
+
+      function requestNSFWPermission(
+        target
+      ) {
+
+        return new Promise(
+          resolve => {
+
+            const parsed =
+              new URL(
+                target
+              );
+
+
+            nsfwDomain.textContent =
+              parsed.hostname;
+
+
+            nsfwAgeConfirm.checked =
+              false;
+
+
+            nsfwContinue.disabled =
+              true;
+
+
+            nsfwWarning.classList.add(
+              "visible"
+            );
+
+
+            nsfwAgeConfirm.onchange =
+              () => {
+
+                nsfwContinue.disabled =
+                  !nsfwAgeConfirm.checked;
+
+              };
+
+
+            nsfwContinue.onclick =
+              () => {
+
+                if (
+                  !nsfwAgeConfirm.checked
+                ) {
+
+                  return;
+
+                }
+
+
+                enableNSFWForSession();
+
+
+                nsfwWarning.classList.remove(
+                  "visible"
+                );
+
+
+                resolve(
+                  true
+                );
+
+              };
+
+
+            nsfwBack.onclick =
+              () => {
+
+                nsfwWarning.classList.remove(
+                  "visible"
+                );
+
+
+                resolve(
+                  false
+                );
+
+              };
+
+          }
+        );
+
+      }
+
+
+      async function checkNSFWGate(
+        target
+      ) {
+
+        if (
+          !isNSFW(
+            target
+          )
+        ) {
+
+          return true;
+
+        }
+
+
+        if (
+          nsfwEnabledForSession()
+        ) {
+
+          return true;
+
+        }
+
+
+        hideStatus();
+
+
+        const allowed =
+          await requestNSFWPermission(
+            target
+          );
+
+
+        if (
+          allowed
+        ) {
+
+          showStatus();
+
+
+          spinner.style.display =
+            "";
+
+
+          setStatus(
+            "Starting Entry",
+            "Preparing destination…"
+          );
+
+        }
+
+
+        return allowed;
+
+      }
+
+
+      /* =====================================================
          ENGINE CHECK
+
+         IMPORTANT:
+         Your actual /transport/index.js reported:
+
+         window.EpoxyTransport.default
+         window.EpoxyTransport.epoxyInfo
+
+         So this version uses .default.
          ===================================================== */
 
       function checkEngine() {
@@ -446,13 +1102,6 @@
           "Checking Epoxy and Corridor…"
         );
 
-
-        /*
-         * Epoxy browser bundle:
-         *
-         * window.EpoxyTransport
-         * window.EpoxyTransport.EpoxyClient
-         */
 
         if (
           !window.EpoxyTransport
@@ -468,7 +1117,7 @@
         if (
           typeof window
             .EpoxyTransport
-            .EpoxyClient !==
+            .default !==
           "function"
         ) {
 
@@ -479,17 +1128,13 @@
 
 
           throw new Error(
-            "EpoxyClient was not found. " +
+            "Epoxy default transport was not found. " +
             "Available EpoxyTransport exports: " +
             keys.join(", ")
           );
 
         }
 
-
-        /*
-         * Corridor WASM/browser runtime.
-         */
 
         if (
           !window.$corridor
@@ -501,10 +1146,6 @@
 
         }
 
-
-        /*
-         * Corridor controller API.
-         */
 
         if (
           !window.$corridorController
@@ -606,12 +1247,6 @@
         );
 
 
-        /*
-         * The worker may have installed successfully
-         * without controlling the current browse page
-         * yet.
-         */
-
         if (
           !navigator
             .serviceWorker
@@ -663,12 +1298,14 @@
 
 
         return {
+
           registration,
 
           worker:
             navigator
               .serviceWorker
               .controller
+
         };
 
       }
@@ -676,6 +1313,9 @@
 
       /* =====================================================
          EPOXY TRANSPORT
+
+         FIXED:
+         Uses window.EpoxyTransport.default
          ===================================================== */
 
       async function createTransport() {
@@ -686,31 +1326,20 @@
         );
 
 
-        const EpoxyClient =
+        const EpoxyTransport =
           window
             .EpoxyTransport
-            .EpoxyClient;
+            .default;
 
-
-        /*
-         * Correct browser-build constructor.
-         */
 
         const transport =
-          new EpoxyClient({
+          new EpoxyTransport({
 
             wisp:
               CONFIG.WISP
 
           });
 
-
-        /*
-         * Different Epoxy versions initialize
-         * slightly differently.
-         *
-         * If init() exists, initialize it here.
-         */
 
         if (
           typeof transport.init ===
@@ -798,7 +1427,7 @@
 
 
       /* =====================================================
-         CREATE FRAME
+         CREATE BROWSER FRAME
          ===================================================== */
 
       function createBrowserFrame(
@@ -850,7 +1479,7 @@
 
 
       /* =====================================================
-         OPEN DESTINATION
+         OPEN WEBSITE
          ===================================================== */
 
       async function openDestination(
@@ -899,21 +1528,11 @@
         );
 
 
-        /*
-         * Corridor's frame.go() may be synchronous
-         * depending on the controller build.
-         */
-
         const result =
           frame.go(
             target
           );
 
-
-        /*
-         * If this build happens to return a Promise,
-         * wait for it.
-         */
 
         if (
           result &&
@@ -934,14 +1553,6 @@
         }
 
 
-        /*
-         * Safety fallback:
-         *
-         * Once Corridor has navigated the iframe,
-         * don't leave the loading screen permanently
-         * covering a slow destination.
-         */
-
         setTimeout(
           finish,
           10000
@@ -951,7 +1562,62 @@
 
 
       /* =====================================================
-         MAIN STARTUP
+         CANCELLED NAVIGATION
+         ===================================================== */
+
+      function navigationCancelled() {
+
+        if (
+          window.history.length >
+          1
+        ) {
+
+          window.history.back();
+
+          return;
+
+        }
+
+
+        document.body.innerHTML =
+          `
+            <div
+              style="
+                min-height:100vh;
+                display:grid;
+                place-items:center;
+                background:#000;
+                color:#fff;
+                font-family:system-ui,sans-serif;
+                text-align:center;
+                padding:30px;
+              "
+            >
+
+              <div>
+
+                <h2>
+                  Navigation cancelled
+                </h2>
+
+                <p
+                  style="
+                    opacity:.65;
+                  "
+                >
+                  The NSFW destination was not opened.
+                </p>
+
+              </div>
+
+            </div>
+          `;
+
+      }
+
+
+      /* =====================================================
+         MAIN
          ===================================================== */
 
       async function start() {
@@ -965,7 +1631,7 @@
 
 
           /*
-           * Destination.
+           * Read destination.
            */
 
           const target =
@@ -973,7 +1639,29 @@
 
 
           /*
-           * Verify all browser bundles.
+           * Check NSFW before transport initialization
+           * or frame navigation.
+           */
+
+          const allowed =
+            await checkNSFWGate(
+              target
+            );
+
+
+          if (
+            !allowed
+          ) {
+
+            navigationCancelled();
+
+            return;
+
+          }
+
+
+          /*
+           * Verify engine bundles.
            */
 
           checkEngine();
@@ -990,7 +1678,7 @@
 
 
           /*
-           * Epoxy + Wisp.
+           * Epoxy.
            */
 
           const transport =
@@ -998,7 +1686,7 @@
 
 
           /*
-           * Corridor.
+           * Corridor controller.
            */
 
           const controller =
@@ -1009,7 +1697,7 @@
 
 
           /*
-           * Navigate.
+           * Open destination.
            */
 
           await openDestination(
@@ -1062,7 +1750,7 @@
 
 
       /* =====================================================
-         START ENTRY
+         START
          ===================================================== */
 
       start();
